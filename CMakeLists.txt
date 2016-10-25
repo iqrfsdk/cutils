@@ -2,6 +2,9 @@ project (cutils)
 
 cmake_minimum_required(VERSION 2.8)
 
+FIND_PACKAGE(clibcdc REQUIRED)
+FIND_PACKAGE(clibspi REQUIRED)
+
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -26,6 +29,9 @@ message(STATUS "CMAKE_C_FLAGS_RELEASE:   ${CMAKE_C_FLAGS_RELEASE}")
 message(STATUS "CMAKE_C_FLAGS_DEBUG:     ${CMAKE_C_FLAGS_DEBUG}")
 
 add_subdirectory(include)
+add_subdirectory(IqrfCdcChannel)
+add_subdirectory(IqrfSpiChannel)
+add_subdirectory(UdpChannel)
 
 # Configure config file.
 # This file specifies actions performed and variables exported when using find_package on this project.
