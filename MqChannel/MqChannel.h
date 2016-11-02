@@ -9,21 +9,15 @@
 #include <mutex>
 #include <atomic>
 
-typedef unsigned long DWORD;
 #ifdef WIN
-typedef void* HANDLE;
-static const DWORD scond = 1000;
+#include <windows.h>
+typedef HANDLE MQDESCR;
 #else
-typedef int HANDLE;
-static const DWORD scond = 1;
+//#include <fcntl.h>
+//#include <sys/stat.h>
+#include <mqueue.h>
+typedef mqd_t MQDESCR;
 #endif
-typedef void* LPVOID;
-
-//#ifdef WIN
-/////////////////
-//#include <windows.h>
-/////////////////
-//#endif
 
 typedef std::basic_string<unsigned char> ustring;
 
@@ -47,8 +41,8 @@ private:
   void connect(bool reconnect);
   std::mutex m_connectMtx;
 
-  HANDLE m_localMqHandle;
-  HANDLE m_remoteMqHandle;
+  MQDESCR m_localMqHandle;
+  MQDESCR m_remoteMqHandle;
   std::string m_localMqName;
   std::string m_remoteMqName;
 

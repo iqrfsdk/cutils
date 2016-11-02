@@ -21,7 +21,7 @@ const int INVALID_HANDLE_VALUE = -1;
 #define MSG_BUFFER_SIZE MAX_MSG_SIZE + 10
 #endif
 
-#ifdef WIN
+#if 0
 MqChannel::MqChannel(const std::string& remoteMqName, const std::string& localMqName, unsigned bufsize)
   :m_runListenThread(true)
   ,m_localMqHandle(INVALID_HANDLE_VALUE)
@@ -87,48 +87,48 @@ void MqChannel::listen()
   TRC_ENTER("thread starts");
 
   try {
-  // Wait for the client to connect; if it succeeds, 
-  // the function returns a nonzero value. If the function
-  // returns zero, GetLastError returns ERROR_PIPE_CONNECTED. 
-  while (m_runListenThread) {
-    
-    unsigned long cbBytesRead = 0;
-    bool fSuccess(false);
-
-    // Wait to connect form cient
-    fSuccess = ConnectNamedPipe(m_localMqHandle, NULL);
-    if (!fSuccess) {
-      THROW_EX(MqChannelException, "ConnectNamedPipe failed: " << NAME_PAR(GetLastError, GetLastError()));
-    }
-
-    // Connected from client open write channel to client
-    connect(false);
-
-    // Loop for reading
+    // Wait for the client to connect; if it succeeds, 
+    // the function returns a nonzero value. If the function
+    // returns zero, GetLastError returns ERROR_PIPE_CONNECTED. 
     while (m_runListenThread) {
-      cbBytesRead = 0;
-      // Read client requests from the pipe. This simplistic code only allows messages up to BUFSIZE characters in length.
-      fSuccess = ReadFile(
-        m_localMqHandle, // handle to pipe 
-        m_rx,            // buffer to receive data 
-        m_bufsize,       // size of buffer 
-        &cbBytesRead,    // number of bytes read 
-        NULL);           // not overlapped I/O 
 
-      if (!fSuccess || cbBytesRead == 0) {
-        if (GetLastError() == ERROR_BROKEN_PIPE) {
-          THROW_EX(MqChannelException, "Client disconnected: " << NAME_PAR(GetLastError, GetLastError()));
-        }
-        else {
-          THROW_EX(MqChannelException, "ReadFile failed: " << NAME_PAR(GetLastError, GetLastError()));
-        }
-        break;
+      unsigned long cbBytesRead = 0;
+      bool fSuccess(false);
+
+      // Wait to connect form cient
+      fSuccess = ConnectNamedPipe(m_localMqHandle, NULL);
+      if (!fSuccess) {
+        THROW_EX(MqChannelException, "ConnectNamedPipe failed: " << NAME_PAR(GetLastError, GetLastError()));
       }
 
-      std::basic_string<unsigned char> message(m_rx, cbBytesRead);
-      m_receiveFromFunc(message);
+      // Connected from client open write channel to client
+      connect(false);
+
+      // Loop for reading
+      while (m_runListenThread) {
+        cbBytesRead = 0;
+        // Read client requests from the pipe. This simplistic code only allows messages up to BUFSIZE characters in length.
+        fSuccess = ReadFile(
+          m_localMqHandle, // handle to pipe 
+          m_rx,            // buffer to receive data 
+          m_bufsize,       // size of buffer 
+          &cbBytesRead,    // number of bytes read 
+          NULL);           // not overlapped I/O 
+
+        if (!fSuccess || cbBytesRead == 0) {
+          if (GetLastError() == ERROR_BROKEN_PIPE) {
+            THROW_EX(MqChannelException, "Client disconnected: " << NAME_PAR(GetLastError, GetLastError()));
+          }
+          else {
+            THROW_EX(MqChannelException, "ReadFile failed: " << NAME_PAR(GetLastError, GetLastError()));
+          }
+          break;
+        }
+
+        std::basic_string<unsigned char> message(m_rx, cbBytesRead);
+        m_receiveFromFunc(message);
+      }
     }
-  }
   }
   catch (MqChannelException& e) {
     CATCH_EX("listening thread finished", MqChannelException, e);
@@ -219,17 +219,17 @@ void MqChannel::registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc)
 ///////////////////////////////////
 MqChannel::MqChannel(const std::string& remoteMqName, const std::string& localMqName, unsigned bufsize)
   :m_runListenThread(true)
-  ,m_localMqHandle(INVALID_HANDLE_VALUE)
-  ,m_remoteMqHandle(INVALID_HANDLE_VALUE)
-  ,m_localMqName(localMqName)
-  ,m_remoteMqName(remoteMqName)
-  ,m_bufsize(bufsize)
+  , m_localMqHandle(INVALID_HANDLE_VALUE)
+  , m_remoteMqHandle(INVALID_HANDLE_VALUE)
+  , m_localMqName(localMqName)
+  , m_remoteMqName(remoteMqName)
+  , m_bufsize(bufsize)
 {
   m_connected = false;
   m_rx = ant_new unsigned char[m_bufsize];
   memset(m_rx, 0, m_bufsize);
 
-#if WIN
+#ifdef WIN
   m_localMqName = std::string("\\\\.\\pipe\\") + m_localMqName;
   m_remoteMqName = std::string("\\\\.\\pipe\\") + m_remoteMqName;
 #else
@@ -253,10 +253,10 @@ MqChannel::MqChannel(const std::string& remoteMqName, const std::string& localMq
   attr.mq_curmsgs = 0;
 
   m_localMqHandle = mq_open(
-	m_localMqName.c_str(),    // pipe name
-	O_RDONLY | O_CREAT,
-	QUEUE_PERMISSIONS,
-	&attr);
+    m_localMqName.c_str(),    // pipe name
+    O_RDONLY | O_CREAT,
+    QUEUE_PERMISSIONS,
+    &attr);
 #else
   m_localMqHandle = CreateNamedPipe(
     m_localMqName.c_str(),    // pipe name
@@ -301,56 +301,58 @@ void MqChannel::listen()
   TRC_ENTER("thread starts");
 
   try {
-  // Wait for the client to connect; if it succeeds,
-  // the function returns a nonzero value. If the function
-  // returns zero, GetLastError returns ERROR_PIPE_CONNECTED.
-  while (m_runListenThread) {
+    // Wait for the client to connect; if it succeeds,
+    // the function returns a nonzero value. If the function
+    // returns zero, GetLastError returns ERROR_PIPE_CONNECTED.
+    while (m_runListenThread) {
 
-    unsigned long cbBytesRead = 0;
-    bool fSuccess(false);
+      unsigned long cbBytesRead = 0;
+      bool fSuccess(false);
 
 #ifdef WIN
-    // Wait to connect form cient
-    fSuccess = ConnectNamedPipe(m_localMqHandle, NULL);
-    if (!fSuccess) {
-      THROW_EX(MqChannelException, "ConnectNamedPipe failed: " << NAME_PAR(GetLastError, GetLastError()));
-    }
+      // Wait to connect form cient
+      fSuccess = ConnectNamedPipe(m_localMqHandle, NULL);
+      if (!fSuccess) {
+        THROW_EX(MqChannelException, "ConnectNamedPipe failed: " << NAME_PAR(GetLastError, GetLastError()));
+      }
 
-    // Connected from client open write channel to client
-    connect(false);
+      // Connected from client open write channel to client
+      connect(false);
+#endif
 
-    // Loop for reading
-    while (m_runListenThread) {
-      cbBytesRead = 0;
-      // Read client requests from the pipe. This simplistic code only allows messages up to BUFSIZE characters in length.
-      fSuccess = ReadFile(
-        m_localMqHandle, // handle to pipe
-        m_rx,            // buffer to receive data
-        m_bufsize,       // size of buffer
-        &cbBytesRead,    // number of bytes read
-        NULL);           // not overlapped I/O
+      // Loop for reading
+      while (m_runListenThread) {
+        cbBytesRead = 0;
+        // Read client requests from the pipe. This simplistic code only allows messages up to BUFSIZE characters in length.
+#ifdef WIN
+        fSuccess = ReadFile(
+          m_localMqHandle, // handle to pipe
+          m_rx,            // buffer to receive data
+          m_bufsize,       // size of buffer
+          &cbBytesRead,    // number of bytes read
+          NULL);           // not overlapped I/O
 
-      if (!fSuccess || cbBytesRead == 0) {
-        if (GetLastError() == ERROR_BROKEN_PIPE) {
-          THROW_EX(MqChannelException, "Client disconnected: " << NAME_PAR(GetLastError, GetLastError()));
+        if (!fSuccess || cbBytesRead == 0) {
+          if (GetLastError() == ERROR_BROKEN_PIPE) {
+            THROW_EX(MqChannelException, "Client disconnected: " << NAME_PAR(GetLastError, GetLastError()));
+          }
+          else {
+            THROW_EX(MqChannelException, "ReadFile failed: " << NAME_PAR(GetLastError, GetLastError()));
+          }
+          break;
         }
-        else {
+#else
+        // get the oldest message with highest priority
+        cbBytesRead = mq_receive(m_localMqHandle, (char*)m_rx, m_bufsize, NULL);
+        if (cbBytesRead <= 0) {
           THROW_EX(MqChannelException, "ReadFile failed: " << NAME_PAR(GetLastError, GetLastError()));
         }
-        break;
-      }
-#else
-      // get the oldest message with highest priority
-      cbBytesRead = mq_receive(m_localMqHandle, (char*)m_rx, m_bufsize, NULL);
-      if (cbBytesRead <= 0) {
-        THROW_EX(MqChannelException, "ReadFile failed: " << NAME_PAR(GetLastError, GetLastError()));
-      }
 #endif
-      std::basic_string<unsigned char> message(m_rx, cbBytesRead);
-      m_receiveFromFunc(message);
+        std::basic_string<unsigned char> message(m_rx, cbBytesRead);
+        m_receiveFromFunc(message);
+      }
     }
   }
-
   catch (MqChannelException& e) {
     CATCH_EX("listening thread finished", MqChannelException, e);
     m_runListenThread = false;
@@ -364,27 +366,27 @@ void MqChannel::connect(bool force)
   std::lock_guard<std::mutex> lck(m_connectMtx);
   if (force) {
 #ifdef WIN
-	  CloseHandle(m_remoteMqHandle);
+    CloseHandle(m_remoteMqHandle);
 #else
-  mq_close(m_remoteMqHandle);
+    mq_close(m_remoteMqHandle);
 #endif
   }
   if (!m_connected) {
     // Open write channel to client
 #ifdef WIN
-	m_remoteMqHandle = CreateFile(
-		m_remoteMqName.c_str(), // pipe name
-		GENERIC_WRITE,   // write access
-		0,              // no sharing
-		NULL,           // default security attributes
-		OPEN_EXISTING,  // opens existing pipe
-		0,              // default attributes
-		NULL);          // no template file
+    m_remoteMqHandle = CreateFile(
+      m_remoteMqName.c_str(), // pipe name
+      GENERIC_WRITE,   // write access
+      0,              // no sharing
+      NULL,           // default security attributes
+      OPEN_EXISTING,  // opens existing pipe
+      0,              // default attributes
+      NULL);          // no template file
 #else
-	// send reply message to client
-	m_remoteMqHandle = mq_open(
-	  m_remoteMqName.c_str(), // pipe name
-	  O_WRONLY);
+    // send reply message to client
+    m_remoteMqHandle = mq_open(
+      m_remoteMqName.c_str(), // pipe name
+      O_WRONLY);
 #endif
     if (m_remoteMqHandle == INVALID_HANDLE_VALUE) {
       TRC_WAR("CreateFile failed: " << NAME_PAR(GetLastError, GetLastError()));
@@ -420,7 +422,7 @@ void MqChannel::sendTo(const std::basic_string<unsigned char>& message)
   // Write the reply to the pipe.
   while (true) {
 #ifdef WIN
-	fSuccess = WriteFile(
+    fSuccess = WriteFile(
       m_remoteMqHandle, // handle to pipe
       message.data(),   // buffer to write from
       toWrite,          // number of bytes to write
@@ -428,11 +430,11 @@ void MqChannel::sendTo(const std::basic_string<unsigned char>& message)
       NULL);            // not overlapped I/O
 #else
     written = toWrite;
-	int retval = mq_send(
-	  m_remoteMqHandle, // handle to pipe
+    int retval = mq_send(
+      m_remoteMqHandle, // handle to pipe
       (const char*)message.data(),   // buffer to write from
       toWrite,          // number of bytes to write
-	  0);
+      0);
     if (retval == -1)
       fSuccess = false;
 #endif
