@@ -1,5 +1,7 @@
 #pragma once
 
+#include "PlatformDep.h"
+
 #include "IChannel.h"
 #include <string>
 #include <exception>
@@ -7,9 +9,21 @@
 #include <mutex>
 #include <atomic>
 
+typedef unsigned long DWORD;
+#ifdef WIN
+typedef void* HANDLE;
+static const DWORD scond = 1000;
+#else
+typedef int HANDLE;
+static const DWORD scond = 1;
+#endif
+typedef void* LPVOID;
+
+//#ifdef WIN
 /////////////////
-#include <windows.h> 
+//#include <windows.h>
 /////////////////
+//#endif
 
 typedef std::basic_string<unsigned char> ustring;
 
