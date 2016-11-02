@@ -4,6 +4,7 @@
 #include "PlatformDep.h"
 #include <stdlib.h>     //srand, rand
 #include <time.h>       //time
+#include <string.h>
 
 #ifndef WIN
 #define WSAGetLastError() errno
