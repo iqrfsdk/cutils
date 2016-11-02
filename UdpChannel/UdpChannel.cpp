@@ -119,7 +119,7 @@ void UdpChannel::listen()
     m_runListenThread = false;
   }
   m_isListening = false;
-  TRC_ENTER("thread stopped");
+  TRC_LEAVE("thread stopped");
 }
 
 void UdpChannel::sendTo(const std::basic_string<unsigned char>& message)
