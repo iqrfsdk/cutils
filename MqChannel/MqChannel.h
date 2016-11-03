@@ -38,7 +38,7 @@ private:
   bool m_runListenThread;
   std::thread m_listenThread;
   void listen();
-  void connect(bool reconnect);
+  void connect();
   std::mutex m_connectMtx;
 
   MQDESCR m_localMqHandle;
