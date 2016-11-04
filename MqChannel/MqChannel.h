@@ -13,8 +13,8 @@
 #include <windows.h>
 typedef HANDLE MQDESCR;
 #else
-//#include <fcntl.h>
-//#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <mqueue.h>
 typedef mqd_t MQDESCR;
 #endif
