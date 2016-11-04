@@ -119,8 +119,8 @@ MqChannel::~MqChannel()
 {
   //TODO
 #ifdef WIN
-  FlushFileBuffers(hPipe);
-  DisconnectNamedPipe(hPipe);
+  //FlushFileBuffers(hPipe);
+  //DisconnectNamedPipe(hPipe);
 #endif
   TRC_DBG("closing mqdesc");
   closeMq(m_remoteMqHandle);
@@ -128,7 +128,9 @@ MqChannel::~MqChannel()
 
   TRC_DBG("joining Mq listening thread");
   m_runListenThread = false;
+#ifndef WIN
   pthread_cancel(m_listenThread.native_handle());
+#endif
   if (m_listenThread.joinable())
     m_listenThread.join();
   TRC_DBG("listening thread joined");
@@ -159,6 +161,10 @@ void MqChannel::listen()
         cbBytesRead = 0;
         fSuccess = readMq(m_localMqHandle, m_rx, m_bufsize, cbBytesRead);
         if (!fSuccess || cbBytesRead == 0) {
+          //if (GetLastError() == ERROR_BROKEN_PIPE) {
+          //  TRC_WAR("ReadFile failed with: ERROR_BROKEN_PIPE wait for connect again");
+          //  break;
+          //}
           THROW_EX(MqChannelException, "ReadFile failed: " << NAME_PAR(GetLastError, GetLastError()));
         }
 
