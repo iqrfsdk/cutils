@@ -5,6 +5,10 @@ cmake_minimum_required(VERSION 2.8)
 FIND_PACKAGE(clibcdc REQUIRED)
 FIND_PACKAGE(clibspi REQUIRED)
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  set_directory_properties(PROPERTIES COMPILE_DEFINITIONS_DEBUG "_DEBUG")
+endif()
+
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -32,6 +36,7 @@ add_subdirectory(include)
 add_subdirectory(IqrfCdcChannel)
 add_subdirectory(IqrfSpiChannel)
 add_subdirectory(UdpChannel)
+add_subdirectory(MqChannel)
 
 # Configure config file.
 # This file specifies actions performed and variables exported when using find_package on this project.
