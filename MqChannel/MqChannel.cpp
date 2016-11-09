@@ -105,12 +105,12 @@ MqChannel::MqChannel(const std::string& remoteMqName, const std::string& localMq
   m_localMqName = MQ_PREFIX + m_localMqName;
   m_remoteMqName = MQ_PREFIX + m_remoteMqName;
 
-  TRC_DBG("nPipe Server: Main thread awaiting client connection on: " << m_localMqName);
+  TRC_DBG(PAR(m_localMqName) << PAR(m_remoteMqName));
 
-  m_localMqHandle = openMqRead(m_localMqName, m_bufsize);
-  if (m_localMqHandle == INVALID_HANDLE_VALUE) {
-    THROW_EX(MqChannelException, "CreateNamedPipe failed: " << NAME_PAR(GetLastError, GetLastError()));
-  }
+  //m_localMqHandle = openMqRead(m_localMqName, m_bufsize);
+  //if (m_localMqHandle == INVALID_HANDLE_VALUE) {
+  //  THROW_EX(MqChannelException, "CreateNamedPipe failed: " << NAME_PAR(GetLastError, GetLastError()));
+  //}
 
   m_listenThread = std::thread(&MqChannel::listen, this);
 }
@@ -148,12 +148,19 @@ void MqChannel::listen()
       unsigned long cbBytesRead = 0;
       bool fSuccess(false);
 
+      m_localMqHandle = openMqRead(m_localMqName, m_bufsize);
+      if (m_localMqHandle == INVALID_HANDLE_VALUE) {
+        THROW_EX(MqChannelException, "openMqRead() failed: " << NAME_PAR(GetLastError, GetLastError()));
+      }
+      TRC_DBG("openMqRead() opened: " << PAR(m_localMqName));
+
 #ifdef WIN
       // Wait to connect from cient
       fSuccess = ConnectNamedPipe(m_localMqHandle, NULL);
       if (!fSuccess) {
-        THROW_EX(MqChannelException, "ConnectNamedPipe failed: " << NAME_PAR(GetLastError, GetLastError()));
+        THROW_EX(MqChannelException, "ConnectNamedPipe() failed: " << NAME_PAR(GetLastError, GetLastError()));
       }
+      TRC_DBG("ConnectNamedPipe() connected: " << PAR(m_localMqName));
 #endif
 
       // Loop for reading
@@ -161,11 +168,10 @@ void MqChannel::listen()
         cbBytesRead = 0;
         fSuccess = readMq(m_localMqHandle, m_rx, m_bufsize, cbBytesRead);
         if (!fSuccess || cbBytesRead == 0) {
-          //if (GetLastError() == ERROR_BROKEN_PIPE) {
-          //  TRC_WAR("ReadFile failed with: ERROR_BROKEN_PIPE wait for connect again");
-          //  break;
-          //}
-          THROW_EX(MqChannelException, "ReadFile failed: " << NAME_PAR(GetLastError, GetLastError()));
+          closeMq(m_localMqHandle);
+          m_connected = false; // reconnect again
+          TRC_INF("readMq() failed: " << NAME_PAR(GetLastError, GetLastError()));
+          break;
         }
 
         std::basic_string<unsigned char> message(m_rx, cbBytesRead);
@@ -195,10 +201,11 @@ void MqChannel::connect()
     // Open write channel to client
     m_remoteMqHandle = openMqWrite(m_remoteMqName);
     if (m_remoteMqHandle == INVALID_HANDLE_VALUE) {
-      TRC_WAR("CreateFile failed: " << NAME_PAR(GetLastError, GetLastError()));
+      TRC_WAR("openMqWrite() failed: " << NAME_PAR(GetLastError, GetLastError()));
       //if (GetLastError() != ERROR_PIPE_BUSY)
     }
     else {
+      TRC_DBG("openMqWrite() opened: " << PAR(m_remoteMqName));
       m_connected = true;
     }
   }
@@ -217,7 +224,7 @@ void MqChannel::sendTo(const std::basic_string<unsigned char>& message)
 
   fSuccess = writeMq(m_remoteMqHandle, message.data(), toWrite, written);
   if (!fSuccess || toWrite != written) {
-    TRC_WAR("WriteFile failed: " << NAME_PAR(GetLastError, GetLastError()));
+    TRC_WAR("writeMq() failed: " << NAME_PAR(GetLastError, GetLastError()));
     m_connected = false;
   }
 }
