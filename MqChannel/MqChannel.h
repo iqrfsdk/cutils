@@ -24,7 +24,7 @@ typedef std::basic_string<unsigned char> ustring;
 class MqChannel: public IChannel
 {
 public:
-  MqChannel(const std::string& remoteMqName, const std::string& localMqName, unsigned bufsize);
+  MqChannel(const std::string& remoteMqName, const std::string& localMqName, unsigned bufsize, bool server = false);
   virtual ~MqChannel();
 
   virtual void sendTo(const std::basic_string<unsigned char>& message);
@@ -48,6 +48,7 @@ private:
 
   unsigned char* m_rx;
   unsigned m_bufsize;
+  bool m_server;
 };
 
 class MqChannelException : public std::exception {

@@ -90,13 +90,14 @@ inline bool writeMq(MQDESCR mqDescr, const unsigned char* tx, unsigned long toWr
 
 #endif
 
-MqChannel::MqChannel(const std::string& remoteMqName, const std::string& localMqName, unsigned bufsize)
+MqChannel::MqChannel(const std::string& remoteMqName, const std::string& localMqName, unsigned bufsize, bool server)
   :m_runListenThread(true)
   , m_localMqHandle(INVALID_HANDLE_VALUE)
   , m_remoteMqHandle(INVALID_HANDLE_VALUE)
   , m_localMqName(localMqName)
   , m_remoteMqName(remoteMqName)
   , m_bufsize(bufsize)
+  , m_server(server)
 {
   m_connected = false;
   m_rx = ant_new unsigned char[m_bufsize];
@@ -106,11 +107,6 @@ MqChannel::MqChannel(const std::string& remoteMqName, const std::string& localMq
   m_remoteMqName = MQ_PREFIX + m_remoteMqName;
 
   TRC_DBG(PAR(m_localMqName) << PAR(m_remoteMqName));
-
-  //m_localMqHandle = openMqRead(m_localMqName, m_bufsize);
-  //if (m_localMqHandle == INVALID_HANDLE_VALUE) {
-  //  THROW_EX(MqChannelException, "CreateNamedPipe failed: " << NAME_PAR(GetLastError, GetLastError()));
-  //}
 
   m_listenThread = std::thread(&MqChannel::listen, this);
 }
@@ -166,10 +162,17 @@ void MqChannel::listen()
         cbBytesRead = 0;
         fSuccess = readMq(m_localMqHandle, m_rx, m_bufsize, cbBytesRead);
         if (!fSuccess || cbBytesRead == 0) {
-          closeMq(m_localMqHandle);
-          m_connected = false; // reconnect again
-          TRC_INF("readMq() failed: " << NAME_PAR(GetLastError, GetLastError()));
-          break;
+          if (m_server) { // listen again
+            closeMq(m_localMqHandle);
+            m_connected = false; // connect again
+            TRC_INF("readMq() failed: " << NAME_PAR(GetLastError, GetLastError()));
+            break;
+          }
+          else {
+            std::string brokenMsg("Remote broken");
+            sendTo(ustring((const unsigned char*)brokenMsg.data(), brokenMsg.size()));
+            THROW_EX(MqChannelException, "readMq() failed: " << NAME_PAR(GetLastError, GetLastError()));
+          }
         }
 
         std::basic_string<unsigned char> message(m_rx, cbBytesRead);
