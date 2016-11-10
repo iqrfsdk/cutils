@@ -117,20 +117,18 @@ MqChannel::MqChannel(const std::string& remoteMqName, const std::string& localMq
 
 MqChannel::~MqChannel()
 {
-  //TODO
-#ifdef WIN
-  //FlushFileBuffers(hPipe);
-  //DisconnectNamedPipe(hPipe);
-#endif
-  TRC_DBG("closing mqdesc");
-  closeMq(m_remoteMqHandle);
-  closeMq(m_localMqHandle);
-
   TRC_DBG("joining Mq listening thread");
   m_runListenThread = false;
 #ifndef WIN
+  //seem the only way to stop the thread here
   pthread_cancel(m_listenThread.native_handle());
+#else
+  // Open write channel to client just to unblock ConnectNamedPipe() if listener waits there
+  MQDESCR mqHandle = openMqWrite(m_localMqName);
+  closeMq(m_remoteMqHandle);
+  closeMq(m_localMqHandle);
 #endif
+
   if (m_listenThread.joinable())
     m_listenThread.join();
   TRC_DBG("listening thread joined");
