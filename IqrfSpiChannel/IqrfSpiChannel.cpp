@@ -16,6 +16,7 @@ IqrfSpiChannel::IqrfSpiChannel(const std::string& portIqrf)
 
   int retval = spi_iqrf_init(portIqrf.c_str());
   if (BASE_TYPES_OPER_OK != retval) {
+    delete[] m_rx;
     THROW_EX(SpiChannelException, "Communication interface has not been open.");
   }
 
