@@ -1,5 +1,6 @@
 #pragma once
 
+#include "PlatformDep.h"
 #include "IChannel.h"
 #include "spi_iqrf.h"
 #include "sysfs_gpio.h"
@@ -41,7 +42,7 @@ public:
   {}
 
   //TODO ?
-#ifndef WIN32
+#ifndef WIN
   virtual const char* what() const noexcept(true)
 #else
   virtual const char* what() const

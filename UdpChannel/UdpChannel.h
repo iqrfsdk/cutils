@@ -1,6 +1,8 @@
 #pragma once
 
-#ifdef WIN32
+#include "PlatformDep.h"
+
+#ifdef WIN
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -73,7 +75,7 @@ public:
   {}
 
 //TODO ?
-#ifndef WIN32
+#ifndef WIN
   virtual const char* what() const noexcept(true)
 #else
   virtual const char* what() const

@@ -58,7 +58,7 @@ public:
   {}
 
   //TODO ?
-#ifndef WIN32
+#ifndef WIN
   virtual const char* what() const noexcept(true)
 #else
   virtual const char* what() const
