@@ -44,3 +44,9 @@ void IqrfCdcChannel::registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc)
   m_cdc.registerAsyncMsgListener([&](unsigned char* data, unsigned int length) {
     m_receiveFromFunc(std::basic_string<unsigned char>(data, length)); });
 }
+
+void IqrfCdcChannel::unregisterReceiveFromHandler()
+{
+  m_receiveFromFunc = ReceiveFromFunc();
+  m_cdc.unregisterAsyncMsgListener();
+}

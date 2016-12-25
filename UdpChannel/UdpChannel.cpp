@@ -107,10 +107,15 @@ void UdpChannel::listen()
         THROW_EX(UdpChannelException, "recvfrom returned: " << WSAGetLastError());
       }
 
-      if (recn > 0) {
-        std::basic_string<unsigned char> message(m_rx, recn);
-        if (0 == m_receiveFromFunc(message)) {
-          iqrfUdpTalker.sin_addr.s_addr = iqrfUdpListener.sin_addr.s_addr;    // Change the destination to the address of the last received packet
+      if (recn > 0 ) {
+        if (m_receiveFromFunc) {
+          std::basic_string<unsigned char> message(m_rx, recn);
+          if (0 == m_receiveFromFunc(message)) {
+            iqrfUdpTalker.sin_addr.s_addr = iqrfUdpListener.sin_addr.s_addr;    // Change the destination to the address of the last received packet
+          }
+        }
+        else {
+          TRC_WAR("Unregistered receiveFrom() handler");
         }
       }
     }
@@ -138,6 +143,11 @@ void UdpChannel::sendTo(const std::basic_string<unsigned char>& message)
 void UdpChannel::registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc)
 {
   m_receiveFromFunc = receiveFromFunc;
+}
+
+void UdpChannel::unregisterReceiveFromHandler()
+{
+  m_receiveFromFunc = ReceiveFromFunc();
 }
 
 void UdpChannel::getMyIpAddress()

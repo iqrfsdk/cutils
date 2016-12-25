@@ -28,4 +28,9 @@ public:
   @param [in]	receiveFromFunc	The functional.
   */
   virtual void registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc) = 0;
+
+  /**
+  Unregisters data handler. The handler remains empty. All icoming data are silently discarded
+  */
+  virtual void unregisterReceiveFromHandler() = 0;
 };

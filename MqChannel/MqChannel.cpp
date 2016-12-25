@@ -175,8 +175,13 @@ void MqChannel::listen()
           }
         }
 
-        std::basic_string<unsigned char> message(m_rx, cbBytesRead);
-        m_receiveFromFunc(message);
+        if (m_receiveFromFunc) {
+          std::basic_string<unsigned char> message(m_rx, cbBytesRead);
+          m_receiveFromFunc(message);
+        }
+        else {
+          TRC_WAR("Unregistered receiveFrom() handler");
+        }
       }
     }
   }
@@ -233,4 +238,9 @@ void MqChannel::sendTo(const std::basic_string<unsigned char>& message)
 void MqChannel::registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc)
 {
   m_receiveFromFunc = receiveFromFunc;
+}
+
+void MqChannel::unregisterReceiveFromHandler()
+{
+  m_receiveFromFunc = ReceiveFromFunc();
 }

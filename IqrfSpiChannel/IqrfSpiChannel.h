@@ -13,8 +13,9 @@ class IqrfSpiChannel : public IChannel
 public:
   IqrfSpiChannel(const std::string& portIqrf);
   virtual ~IqrfSpiChannel();
-  virtual void sendTo(const std::basic_string<unsigned char>& message);
-  virtual void registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc);
+  virtual void sendTo(const std::basic_string<unsigned char>& message) override;
+  virtual void registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc) override;
+  virtual void unregisterReceiveFromHandler() override;
 
   void setCommunicationMode(_spi_iqrf_CommunicationMode mode) const;
   _spi_iqrf_CommunicationMode getCommunicationMode() const;

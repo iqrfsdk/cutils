@@ -43,6 +43,10 @@ void IqrfSpiChannel::registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc)
   m_receiveFromFunc = receiveFromFunc;
 }
 
+void IqrfSpiChannel::unregisterReceiveFromHandler()
+{
+  m_receiveFromFunc = ReceiveFromFunc();
+}
 
 void IqrfSpiChannel::setCommunicationMode(_spi_iqrf_CommunicationMode mode) const
 {
@@ -124,9 +128,14 @@ void IqrfSpiChannel::listen()
       }
 
       //unlocked - possible to write in receiveFromFunc
-      if (recData && m_receiveFromFunc) {
-        std::basic_string<unsigned char> message(m_rx, recData);
-        m_receiveFromFunc(message);
+      if (recData) {
+        if (m_receiveFromFunc) {
+          std::basic_string<unsigned char> message(m_rx, recData);
+          m_receiveFromFunc(message);
+        }
+        else {
+          TRC_WAR("Unregistered receiveFrom() handler");
+        }
       }
 
       //TODO some conditional wait for condition from SPI?
