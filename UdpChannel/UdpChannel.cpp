@@ -23,8 +23,8 @@ UdpChannel::UdpChannel(unsigned short remotePort, unsigned short localPort, unsi
   , m_bufsize(bufsize)
 {
   m_isListening = false;
-  m_rx = ant_new unsigned char[m_bufsize];
-  memset(m_rx, 0, m_bufsize);
+  //m_rx = ant_new unsigned char[m_bufsize];
+  //memset(m_rx, 0, m_bufsize);
 
 #ifdef WIN
   // Initialize Winsock
@@ -67,6 +67,8 @@ UdpChannel::UdpChannel(unsigned short remotePort, unsigned short localPort, unsi
     THROW_EX(UdpChannelException, "bind failed: " << GetLastError());
   }
 
+  m_rx = ant_new unsigned char[m_bufsize];
+  memset(m_rx, 0, m_bufsize);
   m_listenThread = std::thread(&UdpChannel::listen, this);
 }
 
@@ -130,7 +132,7 @@ void UdpChannel::listen()
 
 void UdpChannel::sendTo(const std::basic_string<unsigned char>& message)
 {
-  TRC_DBG("Send to UDP: " << std::endl << FORM_HEX(message.data(), message.size()));
+  //TRC_DBG("Send to UDP: " << std::endl << FORM_HEX(message.data(), message.size()));
 
   int trmn = sendto(iqrfUdpSocket, (const char*)message.data(), message.size(), 0, (struct sockaddr *)&iqrfUdpTalker, sizeof(iqrfUdpTalker));
 
