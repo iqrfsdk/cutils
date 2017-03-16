@@ -56,9 +56,9 @@ private:
   void listen();
   void getMyIpAddress();
 
-  SOCKET iqrfUdpSocket;
-  sockaddr_in iqrfUdpListener;
-  sockaddr_in iqrfUdpTalker;
+  SOCKET m_iqrfUdpSocket;
+  sockaddr_in m_iqrfUdpListener;
+  sockaddr_in m_iqrfUdpTalker;
 
   unsigned short m_remotePort;
   unsigned short m_localPort;
