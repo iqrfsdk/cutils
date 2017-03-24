@@ -1,3 +1,19 @@
+/**
+ * Copyright 2016-2017 MICRORISC s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include "IqrfSpiChannel.h"
 #include "IqrfLogging.h"
 #include "PlatformDep.h"
@@ -8,8 +24,8 @@
 const unsigned SPI_REC_BUFFER_SIZE = 1024;
 
 IqrfSpiChannel::IqrfSpiChannel(const std::string& portIqrf)
-  :m_port(portIqrf)
-  ,m_bufsize(SPI_REC_BUFFER_SIZE)
+  :m_port(portIqrf),
+  m_bufsize(SPI_REC_BUFFER_SIZE)
 {
   m_rx = ant_new unsigned char[m_bufsize];
   memset(m_rx, 0, m_bufsize);
@@ -100,25 +116,25 @@ void IqrfSpiChannel::listen()
     while (m_runListenThread)
     {
       int recData = 0;
-      
+
       //lock scope
       {
     	std::lock_guard<std::mutex> lck(m_commMutex);
-        
+
         //get status
         spi_iqrf_SPIStatus status;
         int retval = spi_iqrf_getSPIStatus(&status);
         if (BASE_TYPES_OPER_OK != retval) {
           THROW_EX(SpiChannelException, "spi_iqrf_getSPIStatus() failed: " << PAR(retval));
         }
-        
+
         if (status.isDataReady) {
 
           if (status.dataReady > m_bufsize) {
             THROW_EX(SpiChannelException, "Received data too long: " << NAME_PAR(len, status.dataReady) << PAR(m_bufsize));
           }
 
-          //reading 
+          //reading
           int retval = spi_iqrf_read(m_rx, status.dataReady);
           if (BASE_TYPES_OPER_OK != retval) {
             THROW_EX(SpiChannelException, "spi_iqrf_read() failed: " << PAR(retval));
