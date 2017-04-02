@@ -1,3 +1,6 @@
+#!/bin/bash
+# Script for building cutils on Linux machine
+
 project=cutils
 
 #expected build dir structure
@@ -27,4 +30,3 @@ popd
 
 #build from generated build environment
 cmake --build ${builddir}
-
