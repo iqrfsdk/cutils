@@ -1,0 +1,40 @@
+version: 1.0.{build}-{branch}
+
+branches:
+  except:
+    - gh-pages
+
+image: Visual Studio 2015
+
+init:
+  - git config --global core.autocrlf input
+
+install:
+  - cd ..
+  - git clone https://github.com/iqrfsdk/clibcdc.git
+  - git clone https://github.com/iqrfsdk/clibspi.git
+  - cmd: cd clibcdc
+  - cmd: if "%platform%"=="x86" build32.bat
+  - cmd: if "%platform%"=="x64" build64.bat
+  - cmd: cd ..\clibspi
+  - cmd: if "%platform%"=="x86" build32.bat
+  - cmd: if "%platform%"=="x64" build64.bat
+  - cmd: cd ..\cutils
+
+clone_folder: c:\projects\cutils
+
+platform:
+  - x86
+  - x64
+
+configuration:
+  - Debug
+  - Release
+
+build:
+  parallel: true
+  verbosity: normal
+
+build_script:
+  - cmd: if "%platform%"=="x86" build32.bat
+  - cmd: if "%platform%"=="x64" build64.bat
