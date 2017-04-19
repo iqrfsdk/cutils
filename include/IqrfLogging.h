@@ -86,9 +86,10 @@ __LINE__ << iqrf::TracerNiceFuncName(__FUNCTION__)
 #endif
 
 #define TRC(level, msg) { \
-  std::ostringstream ostr; \
-  ostr << levelToChar(level) << FLF << std::endl << msg << std::endl; \
-  iqrf::Tracer::getTracer().write(ostr.str()); }
+  if(iqrf::Tracer::getTracer().isOn(level)) \
+  { std::ostringstream ostr; \
+  ostr << FLF << std::endl << msg << std::endl; \
+  iqrf::Tracer::getTracer().write(level, ostr.str()); } }
 
 namespace iqrf {
 
@@ -147,36 +148,29 @@ namespace iqrf {
     std::string func_name;
   };
 
-  static const char* levelToChar(Level level)
-  {
-    switch (level) {
-    case err:
-      return "{ERR}";
-    case war:
-      return "{WAR}";
-    case inf:
-      return "{INF}";
-    case dbg:
-      return "{DBG}";
-    default:
-      return "{???}";
-    }
-  }
-
   class Tracer {
   public:
     static Tracer& getTracer();
 
-    void write(const std::string& msg)
+    bool isOn(Level level)
+    {
+      return level <= m_level;
+    }
+
+    void write(Level level, const std::string& msg)
     {
       std::lock_guard<std::mutex> lck(m_mtx);
 
+      time_t now = time(NULL);
+      char   buff[32];
+      strftime(buff, sizeof(buff), "%d-%m-%Y %H:%M:%S", localtime(&now));
+
       if (m_started) {
         if (m_cout)
-          std::cout << msg;
+          std::cout << buff << " " << levelToChar(level) << msg;
         else {
           if (m_ofstream.is_open()) {
-            m_ofstream << msg;
+            m_ofstream << buff << " " << levelToChar(level) << msg;
             if (m_ofstream.tellp() > m_maxSize)
             {
               resetFile();
@@ -186,7 +180,7 @@ namespace iqrf {
       }
     }
 
-    void start(const std::string& fname, long maxSize = TRC_DEFAULT_FILE_MAXSIZE)
+    void start(const std::string& fname, Level level = Level::dbg, long maxSize = TRC_DEFAULT_FILE_MAXSIZE)
     {
       std::lock_guard<std::mutex> lck(m_mtx);
       closeFile();
@@ -194,6 +188,7 @@ namespace iqrf {
       m_fname = fname;
       m_cout = fname.empty();
       m_maxSize = maxSize;
+      m_level = level;
 
       if (!m_fname.empty())
         openFile();
@@ -213,6 +208,7 @@ namespace iqrf {
       : m_cout(false)
       , m_maxSize(-1)
       , m_started(false)
+      , m_level(Level::dbg)
     {
     }
 
@@ -242,6 +238,22 @@ namespace iqrf {
       openFile();
     }
 
+    const char* levelToChar(Level level)
+    {
+      switch (level) {
+      case err:
+        return "{ERR}";
+      case war:
+        return "{WAR}";
+      case inf:
+        return "{INF}";
+      case dbg:
+        return "{DBG}";
+      default:
+        return "{???}";
+      }
+    }
+
     Tracer & operator = (const Tracer& t);
     Tracer(const Tracer& t);
 
@@ -252,6 +264,7 @@ namespace iqrf {
     bool m_cout;
     bool m_started;
     long m_maxSize;
+    Level m_level;
 
   };
 
