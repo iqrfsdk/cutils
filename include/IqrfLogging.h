@@ -33,8 +33,8 @@ namespace iqrf { \
 
 // Starts tracing. The file is reset after reaching filesize [Byte]
 // If the filename is empty string, it provides traces to stdout
-#define TRC_START(filename, filesize) \
-iqrf::Tracer::getTracer().start(filename, filesize);
+#define TRC_START(filename, level, filesize) \
+iqrf::Tracer::getTracer().start(filename, level, filesize);
 
 #define TRC_STOP() \
 iqrf::Tracer::getTracer().stop();
