@@ -175,13 +175,16 @@ namespace iqrf {
       strftime(buf, sizeof(buf), "%d-%m-%Y %H:%M:%S", &tm);
 
       if (m_started) {
-        if (m_cout)
+        if (m_cout) {
           //std::cout << buff << " " << levelToChar(level) << msg;
           std::cout << std::setfill('0') << std::setw(6) << buf << "." << nowTimePointUs << " " << levelToChar(level) << msg;
+          std::cout.flush();
+        }
         else {
           if (m_ofstream.is_open()) {
             //m_ofstream << buff << " " << levelToChar(level) << msg;
             m_ofstream << std::setfill('0') << std::setw(6) << buf << "." << nowTimePointUs << " " << levelToChar(level) << msg;
+            m_ofstream.flush();
             if (m_ofstream.tellp() > m_maxSize)
             {
               resetFile();
