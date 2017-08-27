@@ -33,7 +33,11 @@ typedef int clientlen_t;
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
 #include <netinet/in.h>
+#include <ifaddrs.h>
+#include <netpacket/packet.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
@@ -85,7 +89,7 @@ private:
   std::thread m_listenThread;
   void listen();
   void getMyAddress();
-  void getMyMacAddress();
+  void getMyMacAddress(SOCKET soc);
 
   SOCKET m_iqrfUdpSocket;
   sockaddr_in m_iqrfUdpListener;

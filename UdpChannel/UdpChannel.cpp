@@ -257,19 +257,19 @@ void UdpChannel::getMyAddress()
     THROW_EX(UdpChannelException, "Failed listen myself - cannot specify my IP address.");
   }
 
-  shutdown(soc, SHUT_RD);
-  closesocket(soc);
-
-  getMyMacAddress();
+  getMyMacAddress(soc);
   auto found = m_adapters.find(m_myIpAdress);
   if (found != m_adapters.end()) {
     m_myMacAdress = found->second.mMac;
   }
 
+  shutdown(soc, SHUT_RD);
+  closesocket(soc);
+
   TRC_LEAVE("");
 }
 
-void UdpChannel::getMyMacAddress()
+void UdpChannel::getMyMacAddress(SOCKET soc)
 {
   TRC_ENTER("");
 #ifdef WIN
@@ -304,7 +304,36 @@ void UdpChannel::getMyMacAddress()
   delete [] AdapterInfo;
 
 #else
-  TRC_WAR("Not implemented yet")
+  struct if_nameindex *if_nidxs, *intf;
+  struct ifreq ifr;
+  if_nidxs = if_nameindex();
+  char mac_addr[32];
+
+  if (if_nidxs != NULL) {
+      for (intf = if_nidxs; intf->if_index != 0 || intf->if_name != NULL; intf++) {
+          //printf("%s\t", intf->if_name);
+
+    	  // Type of address to retrieve - IPv4 IP address
+          ifr.ifr_addr.sa_family = AF_INET;
+          // Copy the interface name in the ifreq structure
+          strncpy(ifr.ifr_name, intf->if_name, IFNAMSIZ-1);
+
+          // Get MAC address
+          ioctl(soc, SIOCGIFHWADDR, &ifr);
+          unsigned char *mac = (unsigned char *)ifr.ifr_hwaddr.sa_data;
+          sprintf(mac_addr, "%02X-%02X-%02X-%02X-%02X-%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+          std::string macStr(mac_addr);
+
+          // Get IPv4 address
+          ioctl(soc, SIOCGIFADDR, &ifr);
+          std::string ip(inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
+
+          m_adapters.insert(std::make_pair(ip, MyAdapter(ip, macStr)));
+
+      }
+  }
+  if_freenameindex(if_nidxs);
+
 #endif
   TRC_LEAVE("");
 }
