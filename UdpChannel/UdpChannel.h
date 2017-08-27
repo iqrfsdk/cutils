@@ -75,7 +75,7 @@ private:
     MyAdapter() = delete;
     MyAdapter(const std::string& ip, const std::string& mac)
       :mIpAddr(ip)
-      ,mMac(mac)
+      , mMac(mac)
     {}
     std::string mIpAddr;
     std::string mMac;
@@ -112,7 +112,7 @@ public:
     :m_cause(cause)
   {}
 
-//TODO ?
+  //TODO ?
 #ifndef WIN
   virtual const char* what() const noexcept(true)
 #else

@@ -25,7 +25,7 @@
 #ifndef WIN
 #define WSAGetLastError() errno
 #define SOCKET_ERROR -1
-int closesocket (int filedes) { close(filedes); }
+int closesocket(int filedes) { close(filedes); }
 typedef int opttype;
 #else
 #define SHUT_RD SD_RECEIVE
@@ -128,7 +128,7 @@ void UdpChannel::listen()
         THROW_EX(UdpChannelException, "recvfrom returned: " << WSAGetLastError());
       }
 
-      if (recn > 0 ) {
+      if (recn > 0) {
         if (m_receiveFromFunc) {
           std::basic_string<unsigned char> message(m_rx, recn);
           if (0 == m_receiveFromFunc(message)) {
@@ -281,7 +281,7 @@ void UdpChannel::getMyMacAddress(SOCKET soc)
   AdapterInfo = (PIP_ADAPTER_INFO) new uint8_t[dwBufLen];
 
   if (GetAdaptersInfo(AdapterInfo, &dwBufLen) == ERROR_BUFFER_OVERFLOW) {
-    delete [] AdapterInfo;
+    delete[] AdapterInfo;
     AdapterInfo = (PIP_ADAPTER_INFO) new uint8_t[dwBufLen];
   }
 
@@ -301,7 +301,7 @@ void UdpChannel::getMyMacAddress(SOCKET soc)
     } while (pAdapterInfo);
   }
 
-  delete [] AdapterInfo;
+  delete[] AdapterInfo;
 
 #else
   struct if_nameindex *if_nidxs, *intf;
@@ -310,27 +310,27 @@ void UdpChannel::getMyMacAddress(SOCKET soc)
   char mac_addr[32];
 
   if (if_nidxs != NULL) {
-      for (intf = if_nidxs; intf->if_index != 0 || intf->if_name != NULL; intf++) {
-          //printf("%s\t", intf->if_name);
+    for (intf = if_nidxs; intf->if_index != 0 || intf->if_name != NULL; intf++) {
+      //printf("%s\t", intf->if_name);
 
-    	  // Type of address to retrieve - IPv4 IP address
-          ifr.ifr_addr.sa_family = AF_INET;
-          // Copy the interface name in the ifreq structure
-          strncpy(ifr.ifr_name, intf->if_name, IFNAMSIZ-1);
+      // Type of address to retrieve - IPv4 IP address
+      ifr.ifr_addr.sa_family = AF_INET;
+      // Copy the interface name in the ifreq structure
+      strncpy(ifr.ifr_name, intf->if_name, IFNAMSIZ - 1);
 
-          // Get MAC address
-          ioctl(soc, SIOCGIFHWADDR, &ifr);
-          unsigned char *mac = (unsigned char *)ifr.ifr_hwaddr.sa_data;
-          sprintf(mac_addr, "%02X-%02X-%02X-%02X-%02X-%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-          std::string macStr(mac_addr);
+      // Get MAC address
+      ioctl(soc, SIOCGIFHWADDR, &ifr);
+      unsigned char *mac = (unsigned char *)ifr.ifr_hwaddr.sa_data;
+      sprintf(mac_addr, "%02X-%02X-%02X-%02X-%02X-%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+      std::string macStr(mac_addr);
 
-          // Get IPv4 address
-          ioctl(soc, SIOCGIFADDR, &ifr);
-          std::string ip(inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
+      // Get IPv4 address
+      ioctl(soc, SIOCGIFADDR, &ifr);
+      std::string ip(inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
 
-          m_adapters.insert(std::make_pair(ip, MyAdapter(ip, macStr)));
+      m_adapters.insert(std::make_pair(ip, MyAdapter(ip, macStr)));
 
-      }
+    }
   }
   if_freenameindex(if_nidxs);
 
