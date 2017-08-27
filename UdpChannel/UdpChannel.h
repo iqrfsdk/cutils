@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <Iphlpapi.h>
 typedef int clientlen_t;
 #else
 
@@ -48,6 +49,7 @@ typedef size_t clientlen_t;
 #include <thread>
 #include <vector>
 #include <atomic>
+#include <map>
 
 class UdpChannel : public IChannel
 {
@@ -58,11 +60,23 @@ public:
   virtual void registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc) override;
   virtual void unregisterReceiveFromHandler() override;
 
-  std::string getListeningIpAdress() { return m_myIpAdress; }
+  const std::string& getListeningIpAddress() { return m_myIpAdress; }
   unsigned short getListeningIpPort() { return m_localPort; }
+  const std::string& getListeningMacAddress() { return m_myMacAdress; }
   bool isListening() { return m_isListening; }
 
 private:
+  class MyAdapter {
+  public:
+    MyAdapter() = delete;
+    MyAdapter(const std::string& ip, const std::string& mac)
+      :mIpAddr(ip)
+      ,mMac(mac)
+    {}
+    std::string mIpAddr;
+    std::string mMac;
+  };
+
   UdpChannel();
   ReceiveFromFunc m_receiveFromFunc;
 
@@ -70,7 +84,8 @@ private:
   bool m_runListenThread;
   std::thread m_listenThread;
   void listen();
-  void getMyIpAddress();
+  void getMyAddress();
+  void getMyMacAddress();
 
   SOCKET m_iqrfUdpSocket;
   sockaddr_in m_iqrfUdpListener;
@@ -83,6 +98,8 @@ private:
   unsigned m_bufsize;
 
   std::string m_myIpAdress;
+  std::string m_myMacAdress;
+  std::map<std::string, MyAdapter> m_adapters;
 };
 
 class UdpChannelException : public std::exception {

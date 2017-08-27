@@ -38,9 +38,8 @@ UdpChannel::UdpChannel(unsigned short remotePort, unsigned short localPort, unsi
   m_localPort(localPort),
   m_bufsize(bufsize)
 {
+  TRC_ENTER(PAR(remotePort) << PAR(localPort) << PAR(bufsize));
   m_isListening = false;
-  //m_rx = ant_new unsigned char[m_bufsize];
-  //memset(m_rx, 0, m_bufsize);
 
 #ifdef WIN
   // Initialize Winsock
@@ -54,7 +53,9 @@ UdpChannel::UdpChannel(unsigned short remotePort, unsigned short localPort, unsi
 #endif
 
   //try to get local IP by trm and rec to itself
-  getMyIpAddress();
+  getMyAddress();
+  TRC_INF("UDP listening on: " <<
+    NAME_PAR(IP, m_myIpAdress) << NAME_PAR(port, localPort) << NAME_PAR(MAC, m_myMacAdress));
 
   //iqrfUdpSocket = socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
   m_iqrfUdpSocket = socket(AF_INET, SOCK_DGRAM, 0);
@@ -90,6 +91,7 @@ UdpChannel::UdpChannel(unsigned short remotePort, unsigned short localPort, unsi
   memset(m_rx, 0, m_bufsize);
 
   m_listenThread = std::thread(&UdpChannel::listen, this);
+  TRC_LEAVE("");
 }
 
 UdpChannel::~UdpChannel()
@@ -169,9 +171,13 @@ void UdpChannel::unregisterReceiveFromHandler()
   m_receiveFromFunc = ReceiveFromFunc();
 }
 
-void UdpChannel::getMyIpAddress()
+void UdpChannel::getMyAddress()
 {
   TRC_ENTER("");
+
+  m_myIpAdress = "0.0.0.0";
+  m_myMacAdress = "00-00-00-00-00-00";
+
   const int ATTEMPTS_CNT = 3;
   int attempts;
 
@@ -254,5 +260,51 @@ void UdpChannel::getMyIpAddress()
   shutdown(soc, SHUT_RD);
   closesocket(soc);
 
+  getMyMacAddress();
+  auto found = m_adapters.find(m_myIpAdress);
+  if (found != m_adapters.end()) {
+    m_myMacAdress = found->second.mMac;
+  }
+
+  TRC_LEAVE("");
+}
+
+void UdpChannel::getMyMacAddress()
+{
+  TRC_ENTER("");
+#ifdef WIN
+
+  PIP_ADAPTER_INFO AdapterInfo;
+  DWORD dwBufLen = sizeof(IP_ADAPTER_INFO);
+  char mac_addr[32];
+
+  AdapterInfo = (PIP_ADAPTER_INFO) new uint8_t[dwBufLen];
+
+  if (GetAdaptersInfo(AdapterInfo, &dwBufLen) == ERROR_BUFFER_OVERFLOW) {
+    delete [] AdapterInfo;
+    AdapterInfo = (PIP_ADAPTER_INFO) new uint8_t[dwBufLen];
+  }
+
+  if (GetAdaptersInfo(AdapterInfo, &dwBufLen) == NO_ERROR) {
+    PIP_ADAPTER_INFO pAdapterInfo = AdapterInfo;// Contains pointer to current adapter info
+    do {
+      sprintf(mac_addr, "%02X-%02X-%02X-%02X-%02X-%02X",
+        pAdapterInfo->Address[0], pAdapterInfo->Address[1],
+        pAdapterInfo->Address[2], pAdapterInfo->Address[3],
+        pAdapterInfo->Address[4], pAdapterInfo->Address[5]);
+
+      std::string mac(mac_addr);
+      std::string ip(pAdapterInfo->IpAddressList.IpAddress.String);
+      m_adapters.insert(std::make_pair(ip, MyAdapter(ip, mac)));
+
+      pAdapterInfo = pAdapterInfo->Next;
+    } while (pAdapterInfo);
+  }
+
+  delete [] AdapterInfo;
+
+#else
+  TRC_WAR("Not implemented yet")
+#endif
   TRC_LEAVE("");
 }
