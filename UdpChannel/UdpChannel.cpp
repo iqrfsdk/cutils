@@ -337,3 +337,10 @@ void UdpChannel::getMyMacAddress(SOCKET soc)
 #endif
   TRC_LEAVE("");
 }
+
+IChannel::State UdpChannel::getState()
+{
+  //TODO
+  return State::Ready;
+}
+
