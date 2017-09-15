@@ -28,6 +28,7 @@ public:
   virtual void sendTo(const std::basic_string<unsigned char>& message) override;
   virtual void registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc) override;
   virtual void unregisterReceiveFromHandler() override;
+  State getState() override;
 
 private:
   IqrfCdcChannel();

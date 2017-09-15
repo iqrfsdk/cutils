@@ -202,3 +202,20 @@ void IqrfSpiChannel::sendTo(const std::basic_string<unsigned char>& message)
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 }
+
+IChannel::State IqrfSpiChannel::getState()
+{
+  //TODO
+  spi_iqrf_SPIStatus spiStatus;
+  int ret = spi_iqrf_getSPIStatus(&spiStatus);
+  switch (ret) {
+  BASE_TYPES_OPER_OK:
+    if (spiStatus.isDataReady)
+      return State::Ready;
+    else
+      return State::Unknown;
+  default:
+    return State::Unknown;
+  }
+  return State::Unknown;
+}

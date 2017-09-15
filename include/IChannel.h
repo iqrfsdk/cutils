@@ -22,6 +22,15 @@
 class IChannel
 {
 public:
+  enum class State
+  {
+    Init,
+    Ready,
+    Write,
+    Read,
+    Unknown
+  };
+
   // receive data handler
   typedef std::function<int(const std::basic_string<unsigned char>&)> ReceiveFromFunc;
 
@@ -49,4 +58,6 @@ public:
   Unregisters data handler. The handler remains empty. All icoming data are silently discarded
   */
   virtual void unregisterReceiveFromHandler() = 0;
+
+  virtual State getState() = 0;
 };
