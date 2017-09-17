@@ -20,28 +20,49 @@
 #ifndef WIN
 #include <string.h>
 const int INVALID_HANDLE_VALUE = -1;
-#define QUEUE_PERMISSIONS 0660
+#define QUEUE_PERMISSIONS 0644
 #define MAX_MESSAGES 32
-//#define MAX_MSG_SIZE 2048256
-//#define MSG_BUFFER_SIZE MAX_MSG_SIZE + 10
 
 const std::string MQ_PREFIX("/");
 
 inline MQDESCR openMqRead(const std::string name, unsigned bufsize)
 {
-  struct mq_attr attr;
+  TRC_ENTER(PAR(name) << PAR(bufsize))
+  mqd_t retval;
+  retval = mq_unlink(name.c_str());
+  if (retval == 0 || errno == ENOENT) {
 
-  attr.mq_flags = 0;
-  attr.mq_maxmsg = MAX_MESSAGES;
-  attr.mq_msgsize = bufsize / MAX_MESSAGES;
-  attr.mq_curmsgs = 0;
+    struct mq_attr attr;
 
-  return mq_open(name.c_str(), O_RDONLY | O_CREAT, QUEUE_PERMISSIONS, &attr);
+    attr.mq_flags = 0;
+    attr.mq_maxmsg = MAX_MESSAGES;
+    attr.mq_msgsize = bufsize / MAX_MESSAGES;
+    attr.mq_curmsgs = 0;
+
+    TRC_DBG("explicit attributes" << PAR(attr.mq_maxmsg) << PAR(attr.mq_msgsize))
+    retval = mq_open(name.c_str(), O_RDONLY | O_CREAT, QUEUE_PERMISSIONS, &attr);
+
+    if (retval > 0) {
+      struct mq_attr nwattr;
+      int nwretval = mq_getattr(retval, &nwattr);
+      TRC_DBG("set attributes" << PAR(nwretval) << PAR(nwattr.mq_maxmsg) << PAR(nwattr.mq_msgsize))
+    }
+
+  }
+  else {
+	retval = -1;
+	TRC_DBG("mq_unlink() failed")
+  }
+  TRC_LEAVE(PAR(retval));
+  return retval;
 }
 
-inline MQDESCR openMqWrite(const std::string name)
+inline MQDESCR openMqWrite(const std::string name, unsigned bufsize)
 {
-  return mq_open(name.c_str(), O_WRONLY);
+  TRC_ENTER(PAR(name))
+  mqd_t retval = mq_open(name.c_str(), O_WRONLY);
+  TRC_LEAVE(PAR(retval));
+  return retval;
 }
 
 inline void closeMq(MQDESCR mqDescr)
@@ -66,11 +87,14 @@ inline bool readMq(MQDESCR mqDescr, unsigned char* rx, unsigned long bufSize, un
 
 inline bool writeMq(MQDESCR mqDescr, const unsigned char* tx, unsigned long toWrite, unsigned long& written)
 {
+  TRC_ENTER(PAR(toWrite))
+
   written = toWrite;
-  int retval = mq_send(mqDescr, (const char*)tx, toWrite, 0);
-  if (retval < 0)
-    return false;
-  return true;
+  int res = mq_send(mqDescr, (const char*)tx, toWrite, 0);
+  bool retval = res == 0;
+
+  TRC_LEAVE(PAR(retval))
+  return retval;
 }
 
 #else
@@ -115,6 +139,8 @@ MqChannel::MqChannel(const std::string& remoteMqName, const std::string& localMq
   , m_bufsize(bufsize)
   , m_server(server)
 {
+  TRC_ENTER(PAR(remoteMqName) << PAR(localMqName) << PAR(bufsize));
+
   m_connected = false;
   m_rx = ant_new unsigned char[m_bufsize];
   memset(m_rx, 0, m_bufsize);
@@ -125,6 +151,7 @@ MqChannel::MqChannel(const std::string& remoteMqName, const std::string& localMq
   TRC_DBG(PAR(m_localMqName) << PAR(m_remoteMqName));
 
   m_listenThread = std::thread(&MqChannel::listen, this);
+  TRC_LEAVE("");
 }
 
 MqChannel::~MqChannel()
@@ -221,7 +248,7 @@ void MqChannel::connect()
     closeMq(m_remoteMqHandle);
 
     // Open write channel to client
-    m_remoteMqHandle = openMqWrite(m_remoteMqName);
+    m_remoteMqHandle = openMqWrite(m_remoteMqName, m_bufsize);
     if (m_remoteMqHandle == INVALID_HANDLE_VALUE) {
       TRC_WAR("openMqWrite() failed: " << NAME_PAR(GetLastError, GetLastError()));
       //if (GetLastError() != ERROR_PIPE_BUSY)
