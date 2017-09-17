@@ -21,9 +21,9 @@
 #include <string.h>
 const int INVALID_HANDLE_VALUE = -1;
 #define QUEUE_PERMISSIONS 0660
-#define MAX_MESSAGES 10
-#define MAX_MSG_SIZE 256
-#define MSG_BUFFER_SIZE MAX_MSG_SIZE + 10
+#define MAX_MESSAGES 32
+//#define MAX_MSG_SIZE 2048256
+//#define MSG_BUFFER_SIZE MAX_MSG_SIZE + 10
 
 const std::string MQ_PREFIX("/");
 
@@ -33,7 +33,7 @@ inline MQDESCR openMqRead(const std::string name, unsigned bufsize)
 
   attr.mq_flags = 0;
   attr.mq_maxmsg = MAX_MESSAGES;
-  attr.mq_msgsize = MAX_MSG_SIZE;
+  attr.mq_msgsize = bufsize / MAX_MESSAGES;
   attr.mq_curmsgs = 0;
 
   return mq_open(name.c_str(), O_RDONLY | O_CREAT, QUEUE_PERMISSIONS, &attr);
