@@ -43,9 +43,10 @@ public:
   MqChannel(const std::string& remoteMqName, const std::string& localMqName, unsigned bufsize, bool server = false);
   virtual ~MqChannel();
 
-  virtual void sendTo(const std::basic_string<unsigned char>& message) override;
-  virtual void registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc) override;
-  virtual void unregisterReceiveFromHandler() override;
+  void sendTo(const std::basic_string<unsigned char>& message) override;
+  void registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc) override;
+  void unregisterReceiveFromHandler() override;
+  State getState() override;
 
 private:
   MqChannel();

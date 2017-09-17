@@ -60,9 +60,10 @@ class UdpChannel : public IChannel
 public:
   UdpChannel(unsigned short remotePort, unsigned short localPort, unsigned bufsize);
   virtual ~UdpChannel();
-  virtual void sendTo(const std::basic_string<unsigned char>& message) override;
-  virtual void registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc) override;
-  virtual void unregisterReceiveFromHandler() override;
+  void sendTo(const std::basic_string<unsigned char>& message) override;
+  void registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc) override;
+  void unregisterReceiveFromHandler() override;
+  State getState() override;
 
   const std::string& getListeningIpAddress() { return m_myIpAdress; }
   unsigned short getListeningIpPort() { return m_localPort; }

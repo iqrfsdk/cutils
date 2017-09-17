@@ -66,3 +66,8 @@ void IqrfCdcChannel::unregisterReceiveFromHandler()
   m_receiveFromFunc = ReceiveFromFunc();
   m_cdc.unregisterAsyncMsgListener();
 }
+
+IChannel::State IqrfCdcChannel::getState()
+{
+  return State::Ready;
+}

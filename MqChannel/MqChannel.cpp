@@ -260,3 +260,9 @@ void MqChannel::unregisterReceiveFromHandler()
 {
   m_receiveFromFunc = ReceiveFromFunc();
 }
+
+IChannel::State MqChannel::getState()
+{
+  //TODO
+  return State::Ready;
+}
