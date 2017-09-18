@@ -48,21 +48,20 @@ inline MQDESCR openMqRead(const std::string name, unsigned bufsize)
       TRC_DBG("actual attributes: " << PAR(res) << PAR(act_attr.mq_maxmsg) << PAR(act_attr.mq_msgsize))
 
       if (act_attr.mq_maxmsg != req_attr.mq_maxmsg || act_attr.mq_msgsize != req_attr.mq_msgsize) {
-      res = mq_unlink(name.c_str());
-      if (res == 0 || errno == ENOENT) {
-        desc = mq_open(name.c_str(), O_RDONLY | O_CREAT, QUEUE_PERMISSIONS, &req_attr);
-        if (desc < 0) {
-          TRC_WAR("mq_open() after mq_unlink() failed:" << PAR(name) << PAR(desc))
+        res = mq_unlink(name.c_str());
+        if (res == 0 || errno == ENOENT) {
+          desc = mq_open(name.c_str(), O_RDONLY | O_CREAT, QUEUE_PERMISSIONS, &req_attr);
+          if (desc < 0) {
+            TRC_WAR("mq_open() after mq_unlink() failed:" << PAR(name) << PAR(desc))
+          }
         }
-      }
-      else {
-        TRC_WAR("mq_unlink() failed:" << PAR(name) << PAR(desc))
+        else {
+          TRC_WAR("mq_unlink() failed:" << PAR(name) << PAR(desc))
+        }
       }
     }
     else {
-      TRC_WAR("mq_getattr() failed:" << PAR(name) << PAR(desc))
-    }
-
+      TRC_WAR("mq_getattr() failed:" << PAR(name) << PAR(res))
     }
   }
   else {
