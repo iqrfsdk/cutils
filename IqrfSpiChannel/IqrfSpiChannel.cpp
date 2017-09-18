@@ -184,8 +184,10 @@ IChannel::State IqrfSpiChannel::getState()
     std::lock_guard<std::mutex> lck(m_commMutex);
 
     ret = spi_iqrf_getSPIStatus(&spiStatus1);
+    TRC_DBG("SPI status1: " << PAR(spiStatus1.dataNotReadyStatus));
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     ret = spi_iqrf_getSPIStatus(&spiStatus2);
+    TRC_DBG("SPI status2: " << PAR(spiStatus2.dataNotReadyStatus));
   }
 
   switch (ret) {
