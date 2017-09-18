@@ -271,7 +271,7 @@ void MqChannel::listen()
     CATCH_EX("listening thread finished", std::exception, e);
     m_runListenThread = false;
   }
-  m_state = State::Unknown;
+  m_state = State::NotReady;
   TRC_LEAVE("thread stopped");
 }
 
