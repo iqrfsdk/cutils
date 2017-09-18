@@ -177,6 +177,7 @@ void IqrfSpiChannel::sendTo(const std::basic_string<unsigned char>& message)
 
 IChannel::State IqrfSpiChannel::getState()
 {
+  IChannel::State state = State::NotReady;
   spi_iqrf_SPIStatus spiStatus1, spiStatus2;
   int ret = 1;
 
@@ -184,22 +185,26 @@ IChannel::State IqrfSpiChannel::getState()
     std::lock_guard<std::mutex> lck(m_commMutex);
 
     ret = spi_iqrf_getSPIStatus(&spiStatus1);
-    TRC_DBG("SPI status1: " << PAR(spiStatus1.dataNotReadyStatus));
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     ret = spi_iqrf_getSPIStatus(&spiStatus2);
-    TRC_DBG("SPI status2: " << PAR(spiStatus2.dataNotReadyStatus));
   }
 
   switch (ret) {
-  BASE_TYPES_OPER_OK:
-    if (spiStatus1.dataNotReadyStatus == SPI_IQRF_SPI_READY_COMM && spiStatus2.dataNotReadyStatus == SPI_IQRF_SPI_READY_COMM)
-      return State::Ready;
-    else
-      return State::NotReady;
-  
+  case BASE_TYPES_OPER_OK:
+    if (spiStatus1.dataNotReadyStatus == SPI_IQRF_SPI_READY_COMM && spiStatus2.dataNotReadyStatus == SPI_IQRF_SPI_READY_COMM) {
+      state = State::Ready;
+    }
+    else {
+      TRC_DBG("SPI status1: " << PAR(spiStatus1.dataNotReadyStatus));
+      TRC_DBG("SPI status2: " << PAR(spiStatus2.dataNotReadyStatus));
+      state = State::NotReady;
+    }
+    break;
+
   default:
-    return State::NotReady;
+    state = State::NotReady;
+    break;
   }
 
-  return State::NotReady;
+  return state;
 }
