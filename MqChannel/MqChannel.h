@@ -67,6 +67,7 @@ private:
   unsigned char* m_rx;
   unsigned m_bufsize;
   bool m_server;
+  State m_state = State::Init;
 
 };
 

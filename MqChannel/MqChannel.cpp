@@ -28,39 +28,71 @@ const std::string MQ_PREFIX("/");
 inline MQDESCR openMqRead(const std::string name, unsigned bufsize)
 {
   TRC_ENTER(PAR(name) << PAR(bufsize))
-  mqd_t retval;
-  retval = mq_unlink(name.c_str());
-  if (retval == 0 || errno == ENOENT) {
+  mqd_t desc;
 
-    struct mq_attr attr;
+  struct mq_attr req_attr;
 
-    attr.mq_flags = 0;
-    attr.mq_maxmsg = MAX_MESSAGES;
-    attr.mq_msgsize = bufsize / MAX_MESSAGES;
-    attr.mq_curmsgs = 0;
+  req_attr.mq_flags = 0;
+  req_attr.mq_maxmsg = MAX_MESSAGES;
+  req_attr.mq_msgsize = bufsize / MAX_MESSAGES;
+  req_attr.mq_curmsgs = 0;
 
-    TRC_DBG("explicit attributes" << PAR(attr.mq_maxmsg) << PAR(attr.mq_msgsize))
-    retval = mq_open(name.c_str(), O_RDONLY | O_CREAT, QUEUE_PERMISSIONS, &attr);
+  TRC_DBG("required attributes" << PAR(req_attr.mq_maxmsg) << PAR(req_attr.mq_msgsize))
+  desc = mq_open(name.c_str(), O_RDONLY | O_CREAT, QUEUE_PERMISSIONS, &req_attr);
 
-    if (retval > 0) {
-      struct mq_attr nwattr;
-      int nwretval = mq_getattr(retval, &nwattr);
-      TRC_DBG("set attributes" << PAR(nwretval) << PAR(nwattr.mq_maxmsg) << PAR(nwattr.mq_msgsize))
+  if (desc > 0) {
+
+    struct mq_attr act_attr;
+    int res = mq_getattr(desc, &act_attr);
+    if (res == 0) {
+      TRC_DBG("actual attributes: " << PAR(res) << PAR(act_attr.mq_maxmsg) << PAR(act_attr.mq_msgsize))
+
+      if (act_attr.mq_maxmsg != req_attr.mq_maxmsg || act_attr.mq_msgsize != req_attr.mq_msgsize) {
+      res = mq_unlink(name.c_str());
+      if (res == 0 || errno == ENOENT) {
+        desc = mq_open(name.c_str(), O_RDONLY | O_CREAT, QUEUE_PERMISSIONS, &req_attr);
+        if (desc < 0) {
+          TRC_WAR("mq_open() after mq_unlink() failed:" << PAR(name) << PAR(desc))
+        }
+      }
+      else {
+        TRC_WAR("mq_unlink() failed:" << PAR(name) << PAR(desc))
+      }
+    }
+    else {
+      TRC_WAR("mq_getattr() failed:" << PAR(name) << PAR(desc))
     }
 
+    }
   }
   else {
-	retval = -1;
-	TRC_DBG("mq_unlink() failed")
+    TRC_WAR("mq_open() failed:" << PAR(name) << PAR(desc))
   }
-  TRC_LEAVE(PAR(retval));
-  return retval;
+
+  TRC_LEAVE(PAR(desc));
+  return desc;
 }
 
 inline MQDESCR openMqWrite(const std::string name, unsigned bufsize)
 {
   TRC_ENTER(PAR(name))
+
+  struct mq_attr attr;
+
+  attr.mq_flags = 0;
+  attr.mq_maxmsg = MAX_MESSAGES;
+  attr.mq_msgsize = bufsize / MAX_MESSAGES;
+  attr.mq_curmsgs = 0;
+
+  TRC_DBG("explicit attributes" << PAR(attr.mq_maxmsg) << PAR(attr.mq_msgsize))
   mqd_t retval = mq_open(name.c_str(), O_WRONLY);
+
+  if (retval > 0) {
+    struct mq_attr nwattr;
+    int nwretval = mq_getattr(retval, &nwattr);
+    TRC_DBG("set attributes" << PAR(nwretval) << PAR(nwattr.mq_maxmsg) << PAR(nwattr.mq_msgsize))
+  }
+
   TRC_LEAVE(PAR(retval));
   return retval;
 }
@@ -161,6 +193,8 @@ MqChannel::~MqChannel()
 #ifndef WIN
   //seem the only way to stop the thread here
   pthread_cancel(m_listenThread.native_handle());
+  closeMq(m_remoteMqHandle);
+  closeMq(m_localMqHandle);
 #else
   // Open write channel to client just to unblock ConnectNamedPipe() if listener waits there
   MQDESCR mqHandle = openMqWrite(m_localMqName);
@@ -202,6 +236,7 @@ void MqChannel::listen()
 
       // Loop for reading
       while (m_runListenThread) {
+    	m_state = State::Ready;
         cbBytesRead = 0;
         fSuccess = readMq(m_localMqHandle, m_rx, m_bufsize, cbBytesRead);
         if (!fSuccess || cbBytesRead == 0) {
@@ -236,6 +271,7 @@ void MqChannel::listen()
     CATCH_EX("listening thread finished", std::exception, e);
     m_runListenThread = false;
   }
+  m_state = State::Unknown;
   TRC_LEAVE("thread stopped");
 }
 
@@ -290,6 +326,5 @@ void MqChannel::unregisterReceiveFromHandler()
 
 IChannel::State MqChannel::getState()
 {
-  //TODO
-  return State::Ready;
+  return m_state;
 }
