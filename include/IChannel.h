@@ -24,11 +24,8 @@ class IChannel
 public:
   enum class State
   {
-    Init,
     Ready,
-    Write,
-    Read,
-    Unknown
+    NotReady
   };
 
   // receive data handler

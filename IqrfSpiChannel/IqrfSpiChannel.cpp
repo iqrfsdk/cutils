@@ -82,46 +82,17 @@ void IqrfSpiChannel::listen()
   TRC_ENTER("thread starts");
 
   try {
-
-    //wait for SPI ready
-//    while (m_runListenThread)
-//    {
-//      int recData = 0;
-//
-//      //lock scope
-//      {
-//        std::lock_guard<std::mutex> lck(m_commMutex);
-//
-//        //get status
-//        spi_iqrf_SPIStatus status;
-//        int retval = spi_iqrf_getSPIStatus(&status);
-//        if (BASE_TYPES_OPER_OK != retval) {
-//          THROW_EX(SpiChannelException, "spi_iqrf_getSPIStatus() failed: " << PAR(retval));
-//        }
-//
-//        if (status.dataNotReadyStatus == SPI_IQRF_SPI_READY_COMM) {
-//          break;
-//        }
-//        else {
-//          TRC_DBG(PAR_HEX(status.isDataReady) << PAR_HEX(status.dataNotReadyStatus));
-//
-//        }
-//        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-//
-//      }
-//    }
-
     TRC_INF("SPI is ready");
 
     while (m_runListenThread)
     {
       int recData = 0;
 
-      //lock scope
+      // lock scope
       {
-    	std::lock_guard<std::mutex> lck(m_commMutex);
+    	  std::lock_guard<std::mutex> lck(m_commMutex);
 
-        //get status
+        // get status
         spi_iqrf_SPIStatus status;
         int retval = spi_iqrf_getSPIStatus(&status);
         if (BASE_TYPES_OPER_OK != retval) {
@@ -134,7 +105,7 @@ void IqrfSpiChannel::listen()
             THROW_EX(SpiChannelException, "Received data too long: " << NAME_PAR(len, status.dataReady) << PAR(m_bufsize));
           }
 
-          //reading
+          // reading
           int retval = spi_iqrf_read(m_rx, status.dataReady);
           if (BASE_TYPES_OPER_OK != retval) {
             THROW_EX(SpiChannelException, "spi_iqrf_read() failed: " << PAR(retval));
@@ -143,7 +114,7 @@ void IqrfSpiChannel::listen()
         }
       }
 
-      //unlocked - possible to write in receiveFromFunc
+      // unlocked - possible to write in receiveFromFunc
       if (recData) {
         if (m_receiveFromFunc) {
           std::basic_string<unsigned char> message(m_rx, recData);
@@ -154,8 +125,8 @@ void IqrfSpiChannel::listen()
         }
       }
 
-      //TODO some conditional wait for condition from SPI?
-      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+      // checking every 10ms
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
   }
   catch (SpiChannelException& e) {
@@ -175,11 +146,12 @@ void IqrfSpiChannel::sendTo(const std::basic_string<unsigned char>& message)
 
   while (attempt++ < 4) {
     TRC_DBG("Trying to sent: " << counter << "." << attempt);
-    //lock scope
+    
+    // lock scope
     {
       std::lock_guard<std::mutex> lck(m_commMutex);
 
-      //get status
+      // get status
       spi_iqrf_SPIStatus status;
       int retval = spi_iqrf_getSPIStatus(&status);
       if (BASE_TYPES_OPER_OK != retval) {
@@ -194,7 +166,7 @@ void IqrfSpiChannel::sendTo(const std::basic_string<unsigned char>& message)
         break;
       }
       else {
-   	TRC_DBG(PAR_HEX(status.isDataReady) << PAR_HEX(status.dataNotReadyStatus));
+   	    TRC_DBG(PAR_HEX(status.isDataReady) << PAR_HEX(status.dataNotReadyStatus));
       }
     }
     //wait for next attempt
@@ -205,17 +177,27 @@ void IqrfSpiChannel::sendTo(const std::basic_string<unsigned char>& message)
 
 IChannel::State IqrfSpiChannel::getState()
 {
-  //TODO
-  spi_iqrf_SPIStatus spiStatus;
-  int ret = spi_iqrf_getSPIStatus(&spiStatus);
+  spi_iqrf_SPIStatus spiStatus1, spiStatus2;
+  int ret = 1;
+
+  {
+    std::lock_guard<std::mutex> lck(m_commMutex);
+
+    ret = spi_iqrf_getSPIStatus(&spiStatus1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    ret = spi_iqrf_getSPIStatus(&spiStatus2);
+  }
+
   switch (ret) {
   BASE_TYPES_OPER_OK:
-    if (spiStatus.isDataReady)
+    if (spiStatus1.dataNotReadyStatus == SPI_IQRF_SPI_READY_COMM && spiStatus2.dataNotReadyStatus == SPI_IQRF_SPI_READY_COMM)
       return State::Ready;
     else
-      return State::Unknown;
+      return State::NotReady;
+  
   default:
-    return State::Unknown;
+    return State::NotReady;
   }
-  return State::Unknown;
+
+  return State::NotReady;
 }
