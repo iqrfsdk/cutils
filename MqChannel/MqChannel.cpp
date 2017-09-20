@@ -139,7 +139,7 @@ inline MQDESCR openMqRead(const std::string name, unsigned bufsize)
     PIPE_UNLIMITED_INSTANCES, bufsize, bufsize, 0, NULL);
 }
 
-inline MQDESCR openMqWrite(const std::string name)
+inline MQDESCR openMqWrite(const std::string name, unsigned bufsize)
 {
   return CreateFile(name.c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
 }
@@ -196,7 +196,7 @@ MqChannel::~MqChannel()
   closeMq(m_localMqHandle);
 #else
   // Open write channel to client just to unblock ConnectNamedPipe() if listener waits there
-  MQDESCR mqHandle = openMqWrite(m_localMqName);
+  MQDESCR mqHandle = openMqWrite(m_localMqName, m_bufsize);
   closeMq(m_remoteMqHandle);
   closeMq(m_localMqHandle);
 #endif
@@ -283,7 +283,7 @@ void MqChannel::connect()
     closeMq(m_remoteMqHandle);
 
     // Open write channel to client
-    m_remoteMqHandle = openMqWrite(m_remoteMqName);
+    m_remoteMqHandle = openMqWrite(m_remoteMqName, m_bufsize);
     if (m_remoteMqHandle == INVALID_HANDLE_VALUE) {
       TRC_WAR("openMqWrite() failed: " << NAME_PAR(GetLastError, GetLastError()));
       //if (GetLastError() != ERROR_PIPE_BUSY)
