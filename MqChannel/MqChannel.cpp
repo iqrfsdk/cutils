@@ -283,7 +283,7 @@ void MqChannel::connect()
     closeMq(m_remoteMqHandle);
 
     // Open write channel to client
-    m_remoteMqHandle = openMqWrite(m_remoteMqName, m_bufsize);
+    m_remoteMqHandle = openMqWrite(m_remoteMqName);
     if (m_remoteMqHandle == INVALID_HANDLE_VALUE) {
       TRC_WAR("openMqWrite() failed: " << NAME_PAR(GetLastError, GetLastError()));
       //if (GetLastError() != ERROR_PIPE_BUSY)
