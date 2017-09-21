@@ -226,6 +226,7 @@ void MqChannel::listen()
 
 #ifdef WIN
       // Wait to connect from cient
+      m_state = State::Ready;
       fSuccess = ConnectNamedPipe(m_localMqHandle, NULL);
       if (!fSuccess) {
         THROW_EX(MqChannelException, "ConnectNamedPipe() failed: " << NAME_PAR(GetLastError, GetLastError()));
