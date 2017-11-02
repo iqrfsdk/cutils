@@ -51,6 +51,9 @@ private:
   unsigned m_bufsize;
 
   std::mutex m_commMutex;
+  uint8_t module_buffer[16];
+    
+  void handleConfiguration(const std::basic_string<unsigned char>& message);
 };
 
 class SpiChannelException : public std::exception {

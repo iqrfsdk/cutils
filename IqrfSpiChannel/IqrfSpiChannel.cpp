@@ -23,6 +23,17 @@
 
 const unsigned SPI_REC_BUFFER_SIZE = 1024;
 
+// Programming targets
+static const unsigned char CFG_TARGET             = 0x00;
+static const unsigned char RFPMG_TARGET           = 0x01;
+static const unsigned char RFBAND_TARGET          = 0x02;
+static const unsigned char ACCESS_PWD_TARGET      = 0x03;
+static const unsigned char USER_KEY_TARGET        = 0x04;
+static const unsigned char FLASH_TARGET           = 0x05;
+static const unsigned char INTERNAL_EEPROM_TARGET = 0x06;
+static const unsigned char EXTERNAL_EEPROM_TARGET = 0x07;
+static const unsigned char SPECIAL_TARGET         = 0x08;
+
 IqrfSpiChannel::IqrfSpiChannel(const std::string& portIqrf)
   :m_port(portIqrf),
   m_bufsize(SPI_REC_BUFFER_SIZE)
@@ -208,3 +219,184 @@ IChannel::State IqrfSpiChannel::getState()
 
   return state;
 }
+
+void IqrfSpiChannel::enterProgrammingMode() {
+  if (spi_iqrf_pe() != BASE_TYPES_OPER_OK) {
+    THROW_EX(SpiChannelException, "Method enterProgrammingMode() failed!");
+  }
+}
+
+void IqrfSpiChannel::terminateProgrammingMode() {
+  if (spi_iqrf_pt() != BASE_TYPES_OPER_OK) {
+    THROW_EX(SpiChannelException, "Method terminateProgrammingMode() failed!");
+  }
+}
+
+void IqrfSpiChannel::handleConfiguration(const std::basic_string<unsigned char>& message) {
+  // Transform configuration message into two Flash upload messages in correct format
+  std::basic_string<unsigned char> msg1;
+  std::basic_string<unsigned char> msg2;
+      
+  msg1 += 0xC0;
+  msg1 += 0x37;
+  msg2 += 0xD0;
+  msg2 += 0x37;
+      
+  for (int i = 0; i < 16; i++) {
+    msg1 += message[i];
+    msg2 += message[16 + i];
+    msg1 += 0x34;
+    msg2 += 0x34;
+  }
+      
+  upload(FLASH_TARGET, msg1);
+  upload(FLASH_TARGET, msg2);
+}
+
+void IqrfSpiChannel::upload(unsigned char target, const std::basic_string<unsigned char>& message) {
+  static int counter = 0;
+  int attempt = 0;
+  counter++;
+      
+  TRC_DBG("Uploading:");
+      
+  if (target == CFG_TARGET) {
+    handleConfiguration(message);
+    return;
+  }
+           
+  while (attempt++ < 4) {
+    TRC_DBG("Trying to upload data: " << counter << "." << attempt);
+    //lock scope
+    {
+      std::lock_guard<std::mutex> lck(m_commMutex);
+  
+      //get status
+      spi_iqrf_SPIStatus status;
+      int retval = spi_iqrf_getSPIStatus(&status);
+      if (BASE_TYPES_OPER_OK != retval) {
+        THROW_EX(SpiChannelException, "spi_iqrf_getSPIStatus() failed: " << PAR(retval));
+      }
+  
+      if (status.dataNotReadyStatus == SPI_IQRF_SPI_READY_PROG) {
+        int retval = spi_iqrf_upload(target, message.data(), message.length());
+        if (BASE_TYPES_OPER_OK != retval) {
+          THROW_EX(SpiChannelException, "spi_iqrf_upload() failed: " << PAR(retval));
+        }
+        break;
+      }
+      else {
+     	  TRC_DBG(PAR_HEX(status.isDataReady) << PAR_HEX(status.dataNotReadyStatus));
+      }
+    }
+    //wait for next attempt
+    TRC_DBG("Sleep for a while ... ");
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+}
+
+void IqrfSpiChannel::download(unsigned char target, const std::basic_string<unsigned char>& message, std::basic_string<unsigned char>& data) {
+  unsigned char buffer[32];
+  unsigned char cfg;
+  static int counter = 0;
+  int attempt = 0;
+  counter++;
+  int readLen;
+      
+  TRC_DBG("Downloading:");
+          
+  switch (target) {
+    case RFPMG_TARGET:
+      readLen = 1;
+      break;
+    case RFBAND_TARGET:
+      readLen = 1;
+      break;
+    default:
+      readLen = 32;
+      break;
+  }
+      
+  while (attempt++ < 4) {
+    TRC_DBG("Trying to download data: " << counter << "." << attempt);
+    //lock scope
+    {
+      std::lock_guard<std::mutex> lck(m_commMutex);
+  
+      //get status
+      spi_iqrf_SPIStatus status;
+      int retval = spi_iqrf_getSPIStatus(&status);
+      if (BASE_TYPES_OPER_OK != retval) {
+        THROW_EX(SpiChannelException, "spi_iqrf_getSPIStatus() failed: " << PAR(retval));
+      }
+  
+      if (status.dataNotReadyStatus == SPI_IQRF_SPI_READY_PROG) {
+        int retval = spi_iqrf_download(target, message.data(), message.length(), buffer, readLen);
+        if (BASE_TYPES_OPER_OK != retval) {
+          THROW_EX(SpiChannelException, "spi_iqrf_download() failed: " << PAR(retval));
+        }
+          
+        if (target == CFG_TARGET) {
+          for (int i = 0; i < readLen; i++) {
+            data += buffer[i] ^ 0x34;
+          }
+        } else  {
+          for (int i = 0; i < readLen; i++) {
+            data += buffer[i];
+          }
+        }
+          
+        break;
+      }
+      else {
+     	  TRC_DBG(PAR_HEX(status.isDataReady) << PAR_HEX(status.dataNotReadyStatus));
+      }
+    }
+
+    //wait for next attempt
+    TRC_DBG("Sleep for a while ... ");
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+}
+
+void* IqrfSpiChannel::getTRModuleInfo() {
+  static int counter = 0;
+  int attempt = 0;
+  counter++;
+  
+  TRC_DBG("Reading TR Module Info:");
+  
+  while (attempt++ < 4) {
+    TRC_DBG("Trying to read TR Module Info: " << counter << "." << attempt);
+    //lock scope
+    {
+      std::lock_guard<std::mutex> lck(m_commMutex);
+  
+      //get status
+      spi_iqrf_SPIStatus status;
+      int retval = spi_iqrf_getSPIStatus(&status);
+  
+      if (BASE_TYPES_OPER_OK != retval) {
+        THROW_EX(SpiChannelException, "spi_iqrf_getSPIStatus() failed: " << PAR(retval));
+      }
+  
+      if (status.dataNotReadyStatus == SPI_IQRF_SPI_READY_COMM) {
+        int retval = spi_iqrf_get_tr_module_info((void*)module_buffer, 16); 
+        if (BASE_TYPES_OPER_OK != retval) {
+          THROW_EX(SpiChannelException, "spi_iqrf_get_tr_module_info() failed: " << PAR(retval));
+        }
+        break;
+      }
+      else {
+      	TRC_DBG(PAR_HEX(status.isDataReady) << PAR_HEX(status.dataNotReadyStatus));
+      }
+    }
+   
+    //wait for next attempt
+    TRC_DBG("Sleep for a while ... ");
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+
+  return (void*)module_buffer;
+}
+
