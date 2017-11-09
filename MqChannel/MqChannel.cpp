@@ -179,7 +179,7 @@ MqChannel::MqChannel(const std::string& remoteMqName, const std::string& localMq
   m_localMqName = MQ_PREFIX + m_localMqName;
   m_remoteMqName = MQ_PREFIX + m_remoteMqName;
 
-  TRC_DBG(PAR(m_localMqName) << PAR(m_remoteMqName));
+  TRC_INF(PAR(m_localMqName) << PAR(m_remoteMqName));
 
   m_listenThread = std::thread(&MqChannel::listen, this);
   TRC_LEAVE("");
@@ -222,7 +222,7 @@ void MqChannel::listen()
       if (m_localMqHandle == INVALID_HANDLE_VALUE) {
         THROW_EX(MqChannelException, "openMqRead() failed: " << NAME_PAR(GetLastError, GetLastError()));
       }
-      TRC_DBG("openMqRead() opened: " << PAR(m_localMqName));
+      TRC_INF("openMqRead() opened: " << PAR(m_localMqName));
 
 #ifdef WIN
       // Wait to connect from cient
@@ -243,7 +243,7 @@ void MqChannel::listen()
           if (m_server) { // listen again
             closeMq(m_localMqHandle);
             m_connected = false; // connect again
-            TRC_INF("readMq() failed: " << NAME_PAR(GetLastError, GetLastError()));
+            TRC_ERR("readMq() failed: " << NAME_PAR(GetLastError, GetLastError()));
             break;
           }
           else {
@@ -290,7 +290,7 @@ void MqChannel::connect()
       //if (GetLastError() != ERROR_PIPE_BUSY)
     }
     else {
-      TRC_DBG("openMqWrite() opened: " << PAR(m_remoteMqName));
+      TRC_INF("openMqWrite() opened: " << PAR(m_remoteMqName));
       m_connected = true;
     }
   }
@@ -298,7 +298,7 @@ void MqChannel::connect()
 
 void MqChannel::sendTo(const std::basic_string<unsigned char>& message)
 {
-  TRC_DBG("Send to MQ: " << std::endl << FORM_HEX(message.data(), message.size()));
+  TRC_INF("Send to MQ: " << std::endl << FORM_HEX(message.data(), message.size()));
 
   unsigned long toWrite = message.size();
   unsigned long written = 0;

@@ -34,5 +34,4 @@ private:
   IqrfCdcChannel();
   CDCImpl m_cdc;
   ReceiveFromFunc m_receiveFromFunc;
-
 };

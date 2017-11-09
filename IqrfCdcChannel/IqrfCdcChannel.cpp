@@ -38,10 +38,10 @@ void IqrfCdcChannel::sendTo(const std::basic_string<unsigned char>& message)
   int attempt = 0;
   counter++;
 
-  TRC_DBG("Sending to IQRF CDC: " << std::endl << FORM_HEX(message.data(), message.size()));
+  TRC_INF("Sending to IQRF CDC: " << std::endl << FORM_HEX(message.data(), message.size()));
 
   while (attempt++ < 4) {
-    TRC_DBG("Trying to sent: " << counter << "." << attempt);
+    TRC_INF("Trying to sent: " << counter << "." << attempt);
     dsResponse = m_cdc.sendData(message);
     if (dsResponse != DSResponse::BUSY)
       break;
