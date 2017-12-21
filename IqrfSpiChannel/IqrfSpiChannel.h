@@ -52,7 +52,16 @@ private:
 
   std::mutex m_commMutex;
   uint8_t module_buffer[16];
-    
+  
+  void enterProgrammingMode();
+  void terminateProgrammingMode();
+  void upload(unsigned char target, const std::basic_string<unsigned char>& message);
+  void download(
+	unsigned char target, const std::basic_string<unsigned char>& message, 
+	std::basic_string<unsigned char>& data
+  );
+  void* getTRModuleInfo();
+
   void handleConfiguration(const std::basic_string<unsigned char>& message);
 };
 
