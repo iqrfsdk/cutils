@@ -30,6 +30,12 @@ public:
   IqrfSpiChannel(const std::string& portIqrf);
   virtual ~IqrfSpiChannel();
   void sendTo(const std::basic_string<unsigned char>& message) override;
+  virtual void enterProgrammingMode() override;
+  virtual void terminateProgrammingMode() override;
+  virtual void upload(unsigned char target, const std::basic_string<unsigned char>& message) override;
+  virtual void download(unsigned char target, const std::basic_string<unsigned char>& message, std::basic_string<unsigned char>& data) override;
+  virtual void* getTRModuleInfo() override;
+
   void registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc) override;
   void unregisterReceiveFromHandler() override;
   State getState() override;
@@ -52,15 +58,6 @@ private:
 
   std::mutex m_commMutex;
   uint8_t module_buffer[16];
-  
-  void enterProgrammingMode();
-  void terminateProgrammingMode();
-  void upload(unsigned char target, const std::basic_string<unsigned char>& message);
-  void download(
-	unsigned char target, const std::basic_string<unsigned char>& message, 
-	std::basic_string<unsigned char>& data
-  );
-  void* getTRModuleInfo();
 
   void handleConfiguration(const std::basic_string<unsigned char>& message);
 };

@@ -26,6 +26,11 @@ public:
   IqrfCdcChannel(const std::string& portIqrf);
   virtual ~IqrfCdcChannel();
   virtual void sendTo(const std::basic_string<unsigned char>& message) override;
+  virtual void enterProgrammingMode() override;
+  virtual void terminateProgrammingMode() override;
+  virtual void upload(unsigned char target, const std::basic_string<unsigned char>& message) override;
+  virtual void download(unsigned char target, const std::basic_string<unsigned char>& message, std::basic_string<unsigned char>& data) override;
+  virtual void* getTRModuleInfo() override;
   virtual void registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc) override;
   virtual void unregisterReceiveFromHandler() override;
   State getState() override;

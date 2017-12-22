@@ -44,6 +44,12 @@ public:
   */
   virtual void sendTo(const std::basic_string<unsigned char>& message) = 0;
 
+  virtual void enterProgrammingMode() = 0;
+  virtual void terminateProgrammingMode() = 0;
+  virtual void upload(unsigned char target, const std::basic_string<unsigned char>& message) = 0;
+  virtual void download(unsigned char target, const std::basic_string<unsigned char>& message, std::basic_string<unsigned char>& data) = 0;
+  virtual void* getTRModuleInfo() = 0;
+
   /**
   Registers the receive data handler, a functional that is called when a message is received.
 

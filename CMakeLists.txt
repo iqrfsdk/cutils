@@ -37,6 +37,7 @@ message(STATUS "CMAKE_C_FLAGS_DEBUG:     ${CMAKE_C_FLAGS_DEBUG}")
 add_subdirectory(include)
 add_subdirectory(IqrfCdcChannel)
 add_subdirectory(IqrfSpiChannel)
+add_subdirectory(IqrfFakeChannel)
 add_subdirectory(UdpChannel)
 add_subdirectory(MqChannel)
 

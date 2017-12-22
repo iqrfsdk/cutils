@@ -54,6 +54,102 @@ void IqrfCdcChannel::sendTo(const std::basic_string<unsigned char>& message)
   }
 }
 
+void IqrfCdcChannel::enterProgrammingMode() {
+  PTEResponse peResponse = PTEResponse::ERR1;
+  static int counter = 0;
+  int attempt = 0;
+  counter++;
+  
+  TRC_DBG("Entering CDC programming mode");
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  while (attempt++ < 5) {
+    try {
+      TRC_DBG("Trying to enter programming mode: " << counter << "." << attempt);
+      peResponse = m_cdc.enterProgrammingMode();
+    } catch (std::exception& e) {
+        peResponse = PTEResponse::ERR1;
+        TRC_DBG("Exception: " << e.what());
+    }
+    if (peResponse == PTEResponse::OK) {
+        break;
+    }
+    TRC_DBG("Sleep for a while ... ");
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  if (peResponse != PTEResponse::OK) {
+    THROW_EX(CDCImplException, "CDC programming mode can not be entered " << PAR(static_cast<int>(peResponse)));
+  }
+  
+  // Wait for a while - TR device can accept commands in programming mode after some time
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+}
+
+void IqrfCdcChannel::terminateProgrammingMode() {
+  PTEResponse peResponse = PTEResponse::ERR1;
+  
+  TRC_DBG("Terminating CDC programming mode");
+  
+  peResponse = m_cdc.terminateProgrammingMode();
+
+  if (peResponse != PTEResponse::OK) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(250));
+      peResponse = m_cdc.terminateProgrammingMode();
+  }
+  
+  if (peResponse != PTEResponse::OK) {
+    THROW_EX(CDCImplException, "CDC programming mode can not be terminated " << PAR(static_cast<int>(peResponse)));
+  }
+}
+
+void IqrfCdcChannel::upload(unsigned char target, const std::basic_string<unsigned char>& message) {
+  static int counter = 0;
+  PMResponse pmResponse = PMResponse::BUSY;
+  int attempt = 0;
+  counter++;
+
+  TRC_DBG("Uploading data to IQRF CDC target" << PAR_HEX(target) << ": " << std::endl << FORM_HEX(message.data(), message.size()));
+
+  while (attempt++ < 100) {
+    TRC_DBG("Trying to upload: " << counter << "." << attempt);
+    pmResponse = m_cdc.upload(target, message);
+    if (pmResponse != PMResponse::BUSY)
+      break;
+    //wait for next attempt
+    TRC_DBG("Sleep for a while ... ");
+    std::this_thread::sleep_for(std::chrono::milliseconds(4));
+  }
+  if (pmResponse != PMResponse::OK) {
+    THROW_EX(CDCImplException, "CDC upload failed" << PAR(static_cast<int>(pmResponse)));
+  }
+}
+
+void IqrfCdcChannel::download(unsigned char target, const std::basic_string<unsigned char>& message, std::basic_string<unsigned char>& data) {
+  static int counter = 0;
+  PMResponse pmResponse = PMResponse::BUSY;
+  int attempt = 0;
+  counter++;
+
+  TRC_DBG("Downloading data from IQRF CDC target" << PAR_HEX(target) << ": " << std::endl << FORM_HEX(message.data(), message.size()));
+
+  while (attempt++ < 100) {
+    TRC_DBG("Trying to download: " << counter << "." << attempt);
+    pmResponse = m_cdc.download(target, message, data);
+    if (pmResponse != PMResponse::BUSY)
+      break;
+    //wait for next attempt
+    TRC_DBG("Sleep for a while ... ");
+    std::this_thread::sleep_for(std::chrono::milliseconds(4));
+  }
+  if (pmResponse != PMResponse::OK) {
+    THROW_EX(CDCImplException, "CDC download failed" << PAR(static_cast<int>(pmResponse)));
+  }
+}
+
+void* IqrfCdcChannel::getTRModuleInfo() {
+    return m_cdc.getTRModuleInfo();
+}
+
 void IqrfCdcChannel::registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc)
 {
   m_receiveFromFunc = receiveFromFunc;
