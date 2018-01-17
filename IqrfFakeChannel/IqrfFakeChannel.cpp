@@ -249,3 +249,8 @@ void IqrfFakeChannel::putUploadData(unsigned char target, const std::basic_strin
 void* IqrfFakeChannel::getTRModuleInfo() {
     return &moduleInfo;
 }
+
+IChannel::State IqrfFakeChannel::getState()
+{
+  return State::Ready;
+}

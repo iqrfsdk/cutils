@@ -30,6 +30,7 @@ public:
   virtual void* getTRModuleInfo() override;
   virtual void registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc) override;
   virtual void unregisterReceiveFromHandler() override;
+  virtual IChannel::State getState() override;
 
 private:
   IqrfFakeChannel();
