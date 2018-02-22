@@ -99,19 +99,21 @@ def build(generator, build_dir, debug, dep_cdc, dep_spi):
     os.chdir(build_dir)
 
     if sys.platform.startswith("win"):
-        send_command("cmake -G " + "\"" + generator + "\""
+        out = send_command("cmake -G " + "\"" + generator + "\""
                                  + " -Dclibcdc_DIR:PATH=" + dep_cdc 
                                  + " -Dclibspi_DIR:PATH=" + dep_spi 
                                  + " " + current_dir)
+        print(out)
     else:
-        send_command("cmake -G " + "\"" + generator + "\"" 
+        out = send_command("cmake -G " + "\"" + generator + "\"" 
                                  + " -Dclibcdc_DIR:PATH=" + dep_cdc 
                                  + " -Dclibspi_DIR:PATH=" + dep_spi 
                                  + " " + current_dir + " " + debug)
+        print(out)
 
     os.chdir(current_dir)
-    send_command("cmake --build " + build_dir)
-
+    out = send_command("cmake --build " + build_dir)
+    print(out)
 
 if __name__ == "__main__":
     main()
