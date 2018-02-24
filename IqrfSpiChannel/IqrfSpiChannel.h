@@ -27,7 +27,8 @@
 class IqrfSpiChannel : public IChannel
 {
 public:
-  IqrfSpiChannel(const std::string& portIqrf);
+  IqrfSpiChannel() = delete;
+  IqrfSpiChannel(const spi_iqrf_config_struct& cfg);
   virtual ~IqrfSpiChannel();
   void sendTo(const std::basic_string<unsigned char>& message) override;
   void registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc) override;
@@ -38,7 +39,6 @@ public:
   _spi_iqrf_CommunicationMode getCommunicationMode() const;
 
 private:
-  IqrfSpiChannel();
   ReceiveFromFunc m_receiveFromFunc;
 
   std::atomic_bool m_runListenThread;

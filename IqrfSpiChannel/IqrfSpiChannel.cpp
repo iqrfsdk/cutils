@@ -23,14 +23,14 @@
 
 const unsigned SPI_REC_BUFFER_SIZE = 1024;
 
-IqrfSpiChannel::IqrfSpiChannel(const std::string& portIqrf)
-  :m_port(portIqrf),
+IqrfSpiChannel::IqrfSpiChannel(const spi_iqrf_config_struct& cfg)
+  :m_port(cfg.spiDev),
   m_bufsize(SPI_REC_BUFFER_SIZE)
 {
   m_rx = ant_new unsigned char[m_bufsize];
   memset(m_rx, 0, m_bufsize);
 
-  int retval = spi_iqrf_init(portIqrf.c_str());
+  int retval = spi_iqrf_initAdvanced(&cfg);
   if (BASE_TYPES_OPER_OK != retval) {
     delete[] m_rx;
     THROW_EX(SpiChannelException, "Communication interface has not been open.");
