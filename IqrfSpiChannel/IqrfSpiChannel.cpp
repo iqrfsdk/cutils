@@ -23,6 +23,15 @@
 
 const unsigned SPI_REC_BUFFER_SIZE = 1024;
 
+const spi_iqrf_config_struct IqrfSpiChannel::SPI_IQRF_CFG_DEFAULT = {
+  SPI_IQRF_DEFAULT_SPI_DEVICE,
+  RESET_GPIO,
+  RPIIO_PIN_CE0,
+  MISO_GPIO,
+  MOSI_GPIO,
+  SCLK_GPIO
+};
+
 IqrfSpiChannel::IqrfSpiChannel(const spi_iqrf_config_struct& cfg)
   :m_port(cfg.spiDev),
   m_bufsize(SPI_REC_BUFFER_SIZE)

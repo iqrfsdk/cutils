@@ -29,14 +29,7 @@
 class IqrfSpiChannel : public IChannel
 {
 public:
-  const spi_iqrf_config_struct SPI_IQRF_CFG_DEFAULT = {
-    SPI_IQRF_DEFAULT_SPI_DEVICE,
-    RESET_GPIO,
-    RPIIO_PIN_CE0,
-    MISO_GPIO,
-    MOSI_GPIO,
-    SCLK_GPIO
-  };
+  static const spi_iqrf_config_struct SPI_IQRF_CFG_DEFAULT;
   IqrfSpiChannel() = delete;
   IqrfSpiChannel(const spi_iqrf_config_struct& cfg);
   virtual ~IqrfSpiChannel();
