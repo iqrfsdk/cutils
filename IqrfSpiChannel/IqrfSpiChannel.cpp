@@ -17,6 +17,7 @@
 #include "IqrfSpiChannel.h"
 #include "IqrfLogging.h"
 #include "PlatformDep.h"
+#include "TaskQueue.h"
 #include <string.h>
 #include <thread>
 #include <chrono>
@@ -32,74 +33,126 @@ const spi_iqrf_config_struct IqrfSpiChannel::SPI_IQRF_CFG_DEFAULT = {
   SCLK_GPIO
 };
 
-IqrfSpiChannel::IqrfSpiChannel(const spi_iqrf_config_struct& cfg)
-  :m_port(cfg.spiDev),
-  m_bufsize(SPI_REC_BUFFER_SIZE)
+class IqrfSpiChannel::Imp
 {
-  m_rx = ant_new unsigned char[m_bufsize];
-  memset(m_rx, 0, m_bufsize);
+public:
+  static const spi_iqrf_config_struct SPI_IQRF_CFG_DEFAULT;
+  
+  Imp() = delete;
+  
+  Imp(const spi_iqrf_config_struct& cfg)
+    :m_port(cfg.spiDev),
+    m_bufsize(SPI_REC_BUFFER_SIZE)
+  {
+    m_rx = ant_new unsigned char[m_bufsize];
+    memset(m_rx, 0, m_bufsize);
 
-  int retval = spi_iqrf_initAdvanced(&cfg);
-  if (BASE_TYPES_OPER_OK != retval) {
+    int retval = spi_iqrf_initAdvanced(&cfg);
+    if (BASE_TYPES_OPER_OK != retval) {
+      delete[] m_rx;
+      THROW_EX(SpiChannelException, "Communication interface has not been open.");
+    }
+
+    m_receiveMessageQueue = new TaskQueue<std::basic_string<unsigned char>>([&](std::basic_string<unsigned char> msg) {
+      // unlocked - possible to write in receiveFromFunc
+      if (m_receiveFromFunc) {
+        m_receiveFromFunc(msg);
+      }
+      else {
+        TRC_WAR("Unregistered receiveFrom() handler");
+      }
+    });
+
+    m_runListenThread = true;
+    m_listenThread = std::thread(&Imp::listen, this);
+  }
+
+  ~Imp()
+  {
+    m_runListenThread = false;
+
+    TRC_DBG("joining udp listening thread");
+    if (m_listenThread.joinable())
+      m_listenThread.join();
+    TRC_DBG("listening thread joined");
+
+    spi_iqrf_destroy();
+
     delete[] m_rx;
-    THROW_EX(SpiChannelException, "Communication interface has not been open.");
   }
 
-  m_runListenThread = true;
-  m_listenThread = std::thread(&IqrfSpiChannel::listen, this);
-}
-
-IqrfSpiChannel::~IqrfSpiChannel()
-{
-  m_runListenThread = false;
-
-  TRC_DBG("joining udp listening thread");
-  if (m_listenThread.joinable())
-    m_listenThread.join();
-  TRC_DBG("listening thread joined");
-
-  spi_iqrf_destroy();
-
-  delete[] m_rx;
-}
-
-void IqrfSpiChannel::registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc)
-{
-  m_receiveFromFunc = receiveFromFunc;
-}
-
-void IqrfSpiChannel::unregisterReceiveFromHandler()
-{
-  m_receiveFromFunc = ReceiveFromFunc();
-}
-
-void IqrfSpiChannel::setCommunicationMode(_spi_iqrf_CommunicationMode mode) const
-{
-  spi_iqrf_setCommunicationMode(mode);
-  if ( mode != spi_iqrf_getCommunicationMode()) {
-    THROW_EX(SpiChannelException, "CommunicationMode was not changed.");
+  void registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc)
+  {
+    m_receiveFromFunc = receiveFromFunc;
   }
-}
 
-_spi_iqrf_CommunicationMode IqrfSpiChannel::getCommunicationMode() const
-{
-  return spi_iqrf_getCommunicationMode();
-}
+  void unregisterReceiveFromHandler()
+  {
+    m_receiveFromFunc = ReceiveFromFunc();
+  }
 
-void IqrfSpiChannel::listen()
-{
-  TRC_ENTER("thread starts");
+  void setCommunicationMode(_spi_iqrf_CommunicationMode mode) const
+  {
+    spi_iqrf_setCommunicationMode(mode);
+    if (mode != spi_iqrf_getCommunicationMode()) {
+      THROW_EX(SpiChannelException, "CommunicationMode was not changed.");
+    }
+  }
 
-  try {
-    TRC_DBG("SPI is ready");
+  _spi_iqrf_CommunicationMode getCommunicationMode() const
+  {
+    return spi_iqrf_getCommunicationMode();
+  }
 
-    while (m_runListenThread)
+  IChannel::State getState()
+  {
+    IChannel::State state = State::NotReady;
+    spi_iqrf_SPIStatus spiStatus1, spiStatus2;
+    int ret = 1;
+
     {
-      int recData = 0;
+      std::lock_guard<std::mutex> lck(m_commMutex);
+
+      ret = spi_iqrf_getSPIStatus(&spiStatus1);
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      ret = spi_iqrf_getSPIStatus(&spiStatus2);
+    }
+
+    switch (ret) {
+    case BASE_TYPES_OPER_OK:
+      if (spiStatus1.dataNotReadyStatus == SPI_IQRF_SPI_READY_COMM && spiStatus2.dataNotReadyStatus == SPI_IQRF_SPI_READY_COMM) {
+        state = State::Ready;
+      }
+      else {
+        TRC_INF("SPI status1: " << PAR(spiStatus1.dataNotReadyStatus));
+        TRC_INF("SPI status2: " << PAR(spiStatus2.dataNotReadyStatus));
+        state = State::NotReady;
+      }
+      break;
+
+    default:
+      state = State::NotReady;
+      break;
+    }
+
+    return state;
+  }
+
+  void sendTo(const std::basic_string<unsigned char>& message)
+  {
+    static int counter = 0;
+    int attempt = 0;
+    counter++;
+
+    TRC_INF("Sending to IQRF SPI: " << std::endl << FORM_HEX(message.data(), message.size()));
+
+    while (attempt++ < 4) {
+      TRC_INF("Trying to sent: " << counter << "." << attempt);
+      spi_iqrf_SPIStatus status;
 
       // lock scope
       {
-    	  std::lock_guard<std::mutex> lck(m_commMutex);
+        std::lock_guard<std::mutex> lck(m_commMutex);
 
         // get status
         spi_iqrf_SPIStatus status;
@@ -108,112 +161,146 @@ void IqrfSpiChannel::listen()
           THROW_EX(SpiChannelException, "spi_iqrf_getSPIStatus() failed: " << PAR(retval));
         }
 
-        if (status.isDataReady) {
-
-          if (status.dataReady > m_bufsize) {
-            THROW_EX(SpiChannelException, "Received data too long: " << NAME_PAR(len, status.dataReady) << PAR(m_bufsize));
-          }
-
-          // reading
-          int retval = spi_iqrf_read(m_rx, status.dataReady);
+        if (status.dataNotReadyStatus == SPI_IQRF_SPI_READY_COMM) {
+          int retval = spi_iqrf_write((void*)message.data(), message.size());
           if (BASE_TYPES_OPER_OK != retval) {
-            THROW_EX(SpiChannelException, "spi_iqrf_read() failed: " << PAR(retval));
+            THROW_EX(SpiChannelException, "spi_iqrf_write()() failed: " << PAR(retval));
           }
-          recData = status.dataReady;
+          break;
         }
       }
 
-      // unlocked - possible to write in receiveFromFunc
-      if (recData) {
-        if (m_receiveFromFunc) {
-          std::basic_string<unsigned char> message(m_rx, recData);
-          m_receiveFromFunc(message);
-        }
-        else {
-          TRC_WAR("Unregistered receiveFrom() handler");
-        }
+      // conflict with incoming data
+      if (status.isDataReady) {
+        //TRC_INF(PAR_HEX(status.isDataReady) << PAR_HEX(status.dataReady));
+        TRC_DBG("Data ready postpone write: " << PAR_HEX(status.isDataReady) << PAR_HEX(status.dataReady));
+         m_commCondition.notify_one(); // notify listen() to read immediately
       }
 
-      // checking every 10ms
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      // wait for finished read and try write again
+      { // lock scope
+        std::unique_lock<std::mutex> lck(m_commMutex);
+        m_commCondition.wait_for(lck, std::chrono::milliseconds(100));
+      }
+
+    }
+    if (attempt >= 4) {
+      TRC_WAR("Cannot send to SPI: message is dropped");
     }
   }
-  catch (SpiChannelException& e) {
-    CATCH_EX("listening thread error", SpiChannelException, e);
-    m_runListenThread = false;
+
+private:
+  void listen()
+  {
+    TRC_ENTER("thread starts");
+
+    try {
+      TRC_DBG("SPI is ready");
+
+      while (m_runListenThread)
+      {
+        int recData = 0;
+        bool timeout = false;
+
+        { // locked scope
+          std::unique_lock<std::mutex> lck(m_commMutex);
+          m_commCondition.wait_for(lck, std::chrono::milliseconds(10));
+          // locked here when out of wait, doesn't matter if notify or timeout
+
+          // get status
+          spi_iqrf_SPIStatus status;
+          int retval = spi_iqrf_getSPIStatus(&status);
+          if (BASE_TYPES_OPER_OK != retval) {
+            THROW_EX(SpiChannelException, "spi_iqrf_getSPIStatus() failed: " << PAR(retval));
+          }
+
+          if (status.isDataReady) {
+
+            //TODO reallocate buffer?
+            if (status.dataReady > m_bufsize) {
+              THROW_EX(SpiChannelException, "Received data too long: " << NAME_PAR(len, status.dataReady) << PAR(m_bufsize));
+            }
+
+            // reading
+            int retval = spi_iqrf_read(m_rx, status.dataReady);
+            if (BASE_TYPES_OPER_OK != retval) {
+              THROW_EX(SpiChannelException, "spi_iqrf_read() failed: " << PAR(retval));
+            }
+            recData = status.dataReady;
+          }
+        }
+
+        // unblock pending write if any
+        m_commCondition.notify_one();
+
+        // push received message if any
+        if (recData) {
+          m_receiveMessageQueue->pushToQueue(std::basic_string<unsigned char>(m_rx, recData));
+        }
+
+      }
+    }
+    catch (SpiChannelException& e) {
+      CATCH_EX("listening thread error", SpiChannelException, e);
+      m_runListenThread = false;
+    }
+    TRC_WAR("thread stopped");
   }
-  TRC_WAR("thread stopped");
+
+  ReceiveFromFunc m_receiveFromFunc;
+
+  std::atomic_bool m_runListenThread;
+  std::thread m_listenThread;
+
+  std::string m_port;
+
+  unsigned char* m_rx;
+  unsigned m_bufsize;
+
+  std::mutex m_commMutex;
+  std::condition_variable m_commCondition;
+
+  TaskQueue<std::basic_string<unsigned char>>* m_receiveMessageQueue = nullptr;
+
+};
+
+//////////////////////////////////////
+IqrfSpiChannel::IqrfSpiChannel(const spi_iqrf_config_struct& cfg)
+{
+  m_imp = ant_new Imp(cfg);
+}
+
+IqrfSpiChannel::~IqrfSpiChannel()
+{
+  delete m_imp;
+}
+
+void IqrfSpiChannel::registerReceiveFromHandler(ReceiveFromFunc receiveFromFunc)
+{
+  m_imp->registerReceiveFromHandler(receiveFromFunc);
+}
+
+void IqrfSpiChannel::unregisterReceiveFromHandler()
+{
+  m_imp->unregisterReceiveFromHandler();
+}
+
+void IqrfSpiChannel::setCommunicationMode(_spi_iqrf_CommunicationMode mode) const
+{
+  m_imp->setCommunicationMode(mode);
+}
+
+_spi_iqrf_CommunicationMode IqrfSpiChannel::getCommunicationMode() const
+{
+  return m_imp->getCommunicationMode();
 }
 
 void IqrfSpiChannel::sendTo(const std::basic_string<unsigned char>& message)
 {
-  static int counter = 0;
-  int attempt = 0;
-  counter++;
-
-  TRC_INF("Sending to IQRF SPI: " << std::endl << FORM_HEX(message.data(), message.size()));
-
-  while (attempt++ < 4) {
-    TRC_INF("Trying to sent: " << counter << "." << attempt);
-    
-    // lock scope
-    {
-      std::lock_guard<std::mutex> lck(m_commMutex);
-
-      // get status
-      spi_iqrf_SPIStatus status;
-      int retval = spi_iqrf_getSPIStatus(&status);
-      if (BASE_TYPES_OPER_OK != retval) {
-        THROW_EX(SpiChannelException, "spi_iqrf_getSPIStatus() failed: " << PAR(retval));
-      }
-
-      if (status.dataNotReadyStatus == SPI_IQRF_SPI_READY_COMM) {
-        int retval = spi_iqrf_write((void*)message.data(), message.size());
-        if (BASE_TYPES_OPER_OK != retval) {
-          THROW_EX(SpiChannelException, "spi_iqrf_write()() failed: " << PAR(retval));
-        }
-        break;
-      }
-      else {
-   	    TRC_INF(PAR_HEX(status.isDataReady) << PAR_HEX(status.dataNotReadyStatus));
-      }
-    }
-    //wait for next attempt
-    TRC_DBG("Sleep for a while ... ");
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  }
+  m_imp->sendTo(message);
 }
 
 IChannel::State IqrfSpiChannel::getState()
 {
-  IChannel::State state = State::NotReady;
-  spi_iqrf_SPIStatus spiStatus1, spiStatus2;
-  int ret = 1;
-
-  {
-    std::lock_guard<std::mutex> lck(m_commMutex);
-
-    ret = spi_iqrf_getSPIStatus(&spiStatus1);
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    ret = spi_iqrf_getSPIStatus(&spiStatus2);
-  }
-
-  switch (ret) {
-  case BASE_TYPES_OPER_OK:
-    if (spiStatus1.dataNotReadyStatus == SPI_IQRF_SPI_READY_COMM && spiStatus2.dataNotReadyStatus == SPI_IQRF_SPI_READY_COMM) {
-      state = State::Ready;
-    }
-    else {
-      TRC_INF("SPI status1: " << PAR(spiStatus1.dataNotReadyStatus));
-      TRC_INF("SPI status2: " << PAR(spiStatus2.dataNotReadyStatus));
-      state = State::NotReady;
-    }
-    break;
-
-  default:
-    state = State::NotReady;
-    break;
-  }
-
-  return state;
+  return m_imp->getState();
 }
