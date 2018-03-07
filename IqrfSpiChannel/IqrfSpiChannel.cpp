@@ -172,7 +172,7 @@ public:
       // conflict with incoming data
       if (status.isDataReady) {
         //TRC_INF(PAR_HEX(status.isDataReady) << PAR_HEX(status.dataReady));
-        TRC_DBG("Data ready postpone write: " << PAR_HEX(status.isDataReady) << PAR_HEX(status.dataReady));
+        TRC_DBG("Data ready postpone write: " << PAR_HEX(status.isDataReady) << PAR_HEX(status.dataReady) << PAR(m_runListenThread));
          m_commCondition.notify_one(); // notify listen() to read immediately
       }
 
@@ -206,26 +206,32 @@ private:
           m_commCondition.wait_for(lck, std::chrono::milliseconds(10));
           // locked here when out of wait, doesn't matter if notify or timeout
 
-          // get status
+          TRC_DBG("Try to read: ");
           spi_iqrf_SPIStatus status;
           int retval = spi_iqrf_getSPIStatus(&status);
-          if (BASE_TYPES_OPER_OK != retval) {
-            THROW_EX(SpiChannelException, "spi_iqrf_getSPIStatus() failed: " << PAR(retval));
+          if (BASE_TYPES_OPER_OK == retval) {
+            if (status.isDataReady) {
+              if (status.dataReady <= m_bufsize) {
+                retval = spi_iqrf_read(m_rx, status.dataReady);
+                if (BASE_TYPES_OPER_OK == retval) {
+                  // reading success
+                  recData = status.dataReady;
+                }
+                else {
+                  //THROW_EX(SpiChannelException, "spi_iqrf_read() failed: " << PAR(retval));
+                  TRC_WAR("spi_iqrf_read() failed: " << PAR(retval));
+                }
+              }
+              else {
+                //TODO reallocate buffer - maximum?
+                //THROW_EX(SpiChannelException, "Received data too long: " << NAME_PAR(dataReady, status.dataReady) << PAR(m_bufsize));
+                TRC_WAR("Received data too long: " << NAME_PAR(dataReady, status.dataReady) << PAR(m_bufsize));
+              }
+            }
           }
-
-          if (status.isDataReady) {
-
-            //TODO reallocate buffer?
-            if (status.dataReady > m_bufsize) {
-              THROW_EX(SpiChannelException, "Received data too long: " << NAME_PAR(len, status.dataReady) << PAR(m_bufsize));
-            }
-
-            // reading
-            int retval = spi_iqrf_read(m_rx, status.dataReady);
-            if (BASE_TYPES_OPER_OK != retval) {
-              THROW_EX(SpiChannelException, "spi_iqrf_read() failed: " << PAR(retval));
-            }
-            recData = status.dataReady;
+          else {
+            //THROW_EX(SpiChannelException, "spi_iqrf_getSPIStatus() failed: " << PAR(retval));
+            TRC_WAR("spi_iqrf_getSPIStatus() failed: " << PAR(retval));
           }
         }
 
@@ -234,6 +240,7 @@ private:
 
         // push received message if any
         if (recData) {
+          TRC_DBG("Success read: " << PAR(recData));
           m_receiveMessageQueue->pushToQueue(std::basic_string<unsigned char>(m_rx, recData));
         }
 
