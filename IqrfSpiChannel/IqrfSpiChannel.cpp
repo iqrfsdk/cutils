@@ -147,38 +147,40 @@ public:
     TRC_INF("Sending to IQRF SPI: " << std::endl << FORM_HEX(message.data(), message.size()));
 
     while (attempt++ < 4) {
-      TRC_INF("Trying to sent: " << counter << "." << attempt);
+      TRC_DBG("Trying to sent: " << counter << "." << attempt);
       spi_iqrf_SPIStatus status;
 
-      // lock scope
-      {
-        std::lock_guard<std::mutex> lck(m_commMutex);
+      std::unique_lock<std::mutex> lck(m_commMutex);
 
-        // get status
-        int retval = spi_iqrf_getSPIStatus(&status);
-        if (BASE_TYPES_OPER_OK != retval) {
-          THROW_EX(SpiChannelException, "spi_iqrf_getSPIStatus() failed: " << PAR(retval));
-        }
-
+      // get status
+      int retval = spi_iqrf_getSPIStatus(&status);
+      if (BASE_TYPES_OPER_OK == retval) {
         if (status.dataNotReadyStatus == SPI_IQRF_SPI_READY_COMM) {
           int retval = spi_iqrf_write((void*)message.data(), message.size());
-          if (BASE_TYPES_OPER_OK != retval) {
-            THROW_EX(SpiChannelException, "spi_iqrf_write()() failed: " << PAR(retval));
+          if (BASE_TYPES_OPER_OK == retval) {
+            TRC_DBG("Success write: " << NAME_PAR(wrData, message.size()))
+            break;
           }
-          break;
+          else {
+            //THROW_EX(SpiChannelException, "spi_iqrf_write()() failed: " << PAR(retval));
+            TRC_WAR("spi_iqrf_write() failed: " << PAR(retval));
+          }
         }
+      }
+      else {
+        //THROW_EX(SpiChannelException, "spi_iqrf_getSPIStatus() failed: " << PAR(retval));
+        TRC_WAR("spi_iqrf_getSPIStatus() failed: " << PAR(retval));
       }
 
       // conflict with incoming data
       if (status.isDataReady) {
         //TRC_INF(PAR_HEX(status.isDataReady) << PAR_HEX(status.dataReady));
-        TRC_DBG("Data ready postpone write: " << PAR_HEX(status.isDataReady) << PAR_HEX(status.dataReady) << PAR(m_runListenThread));
-         m_commCondition.notify_one(); // notify listen() to read immediately
-      }
-
-      // wait for finished read and try write again
-      { // lock scope
-        std::unique_lock<std::mutex> lck(m_commMutex);
+        TRC_WAR("Data ready postpone write: " << PAR_HEX(status.isDataReady) << PAR_HEX(status.dataReady) << PAR(m_runListenThread));
+        
+        // notify listen() to read immediately
+        m_commCondition.notify_one();
+         
+        // wait for finished read and try write again
         m_commCondition.wait_for(lck, std::chrono::milliseconds(100));
       }
 
@@ -206,11 +208,11 @@ private:
           m_commCondition.wait_for(lck, std::chrono::milliseconds(10));
           // locked here when out of wait, doesn't matter if notify or timeout
 
-          TRC_DBG("Try to read: ");
           spi_iqrf_SPIStatus status;
           int retval = spi_iqrf_getSPIStatus(&status);
           if (BASE_TYPES_OPER_OK == retval) {
             if (status.isDataReady) {
+              TRC_DBG("Data is ready: " << NAME_PAR(dataReady, status.dataReady));
               if (status.dataReady <= m_bufsize) {
                 retval = spi_iqrf_read(m_rx, status.dataReady);
                 if (BASE_TYPES_OPER_OK == retval) {
