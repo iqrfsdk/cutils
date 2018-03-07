@@ -155,7 +155,6 @@ public:
         std::lock_guard<std::mutex> lck(m_commMutex);
 
         // get status
-        spi_iqrf_SPIStatus status;
         int retval = spi_iqrf_getSPIStatus(&status);
         if (BASE_TYPES_OPER_OK != retval) {
           THROW_EX(SpiChannelException, "spi_iqrf_getSPIStatus() failed: " << PAR(retval));
