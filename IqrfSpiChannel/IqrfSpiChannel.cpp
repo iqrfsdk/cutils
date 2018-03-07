@@ -140,13 +140,14 @@ public:
 
   void sendTo(const std::basic_string<unsigned char>& message)
   {
+    const int ATTEMPTS = 8;
     static int counter = 0;
     int attempt = 0;
     counter++;
 
     TRC_INF("Sending to IQRF SPI: " << std::endl << FORM_HEX(message.data(), message.size()));
 
-    while (attempt++ < 4) {
+    while (attempt++ < ATTEMPTS) {
       TRC_DBG("Trying to sent: " << counter << "." << attempt);
       spi_iqrf_SPIStatus status;
 
@@ -185,7 +186,7 @@ public:
       }
 
     }
-    if (attempt >= 4) {
+    if (attempt > ATTEMPTS) {
       TRC_WAR("Cannot send to SPI: message is dropped");
     }
   }
