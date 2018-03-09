@@ -163,19 +163,16 @@ public:
             break;
           }
           else {
-            //THROW_EX(SpiChannelException, "spi_iqrf_write()() failed: " << PAR(retval));
             TRC_WAR("spi_iqrf_write() failed: " << PAR(retval));
           }
         }
       }
       else {
-        //THROW_EX(SpiChannelException, "spi_iqrf_getSPIStatus() failed: " << PAR(retval));
         TRC_WAR("spi_iqrf_getSPIStatus() failed: " << PAR(retval));
       }
 
       // conflict with incoming data
       if (status.isDataReady) {
-        //TRC_INF(PAR_HEX(status.isDataReady) << PAR_HEX(status.dataReady));
         TRC_WAR("Data ready postpone write: " << PAR_HEX(status.isDataReady) << PAR_HEX(status.dataReady) << PAR(m_runListenThread));
         
         // notify listen() to read immediately
@@ -221,19 +218,15 @@ private:
                   recData = status.dataReady;
                 }
                 else {
-                  //THROW_EX(SpiChannelException, "spi_iqrf_read() failed: " << PAR(retval));
                   TRC_WAR("spi_iqrf_read() failed: " << PAR(retval));
                 }
               }
               else {
-                //TODO reallocate buffer - maximum?
-                //THROW_EX(SpiChannelException, "Received data too long: " << NAME_PAR(dataReady, status.dataReady) << PAR(m_bufsize));
                 TRC_WAR("Received data too long: " << NAME_PAR(dataReady, status.dataReady) << PAR(m_bufsize));
               }
             }
           }
           else {
-            //THROW_EX(SpiChannelException, "spi_iqrf_getSPIStatus() failed: " << PAR(retval));
             TRC_WAR("spi_iqrf_getSPIStatus() failed: " << PAR(retval));
           }
         }
