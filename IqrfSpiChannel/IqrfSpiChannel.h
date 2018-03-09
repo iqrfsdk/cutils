@@ -22,10 +22,6 @@
 #include "sysfs_gpio.h"
 #include "machines_def.h"
 
-#include <mutex>
-#include <thread>
-#include <atomic>
-
 class IqrfSpiChannel : public IChannel
 {
 public:
@@ -42,18 +38,8 @@ public:
   _spi_iqrf_CommunicationMode getCommunicationMode() const;
 
 private:
-  ReceiveFromFunc m_receiveFromFunc;
-
-  std::atomic_bool m_runListenThread;
-  std::thread m_listenThread;
-  void listen();
-
-  std::string m_port;
-
-  unsigned char* m_rx;
-  unsigned m_bufsize;
-
-  std::mutex m_commMutex;
+  class Imp;
+  Imp *m_imp;
 };
 
 class SpiChannelException : public std::exception {
