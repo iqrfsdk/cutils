@@ -2,8 +2,13 @@ project (cutils)
 
 cmake_minimum_required(VERSION 2.8)
 
-FIND_PACKAGE(clibcdc REQUIRED)
-FIND_PACKAGE(clibspi REQUIRED)
+if (NOT clibcdc_FOUND)
+  FIND_PACKAGE(clibcdc REQUIRED)
+endif()
+
+if (NOT clibspi_FOUND)
+  FIND_PACKAGE(clibspi REQUIRED)
+endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   set_directory_properties(PROPERTIES COMPILE_DEFINITIONS_DEBUG "_DEBUG")
@@ -33,6 +38,17 @@ message(STATUS "CMAKE_CXX_FLAGS_DEBUG:   ${CMAKE_CXX_FLAGS_DEBUG}")
 message(STATUS "CMAKE_C_FLAGS:           ${CMAKE_C_FLAGS}")
 message(STATUS "CMAKE_C_FLAGS_RELEASE:   ${CMAKE_C_FLAGS_RELEASE}")
 message(STATUS "CMAKE_C_FLAGS_DEBUG:     ${CMAKE_C_FLAGS_DEBUG}")
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(cutils_INCLUDE_DIRS
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/IqrfCdcChannel"
+    "${CMAKE_CURRENT_SOURCE_DIR}/IqrfSpiChannel"
+    "${CMAKE_CURRENT_SOURCE_DIR}/UdpChannel"
+    "${CMAKE_CURRENT_SOURCE_DIR}/MqChannel"
+    PARENT_SCOPE)
+
+set(cutils_FOUND TRUE PARENT_SCOPE)
 
 add_subdirectory(include)
 add_subdirectory(IqrfCdcChannel)

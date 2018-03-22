@@ -43,6 +43,13 @@ set(@PROJECT_NAME@_INCLUDE_DIRS
 link_directories(${@PROJECT_NAME@_CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
 link_directories(${@PROJECT_NAME@_CMAKE_LIBRARY_OUTPUT_DIRECTORY}) # Needed also, on some platforms.
 
+if(@PROJECT_NAME@_INCLUDE_DIRS)
+    SET(@PROJECT_NAME@_FOUND TRUE)
+    MESSAGE(STATUS "Found @PROJECT_NAME@: ${@PROJECT_NAME@_INCLUDE_DIRS}")
+else()
+    MESSAGE(FATAL_ERROR "Could not find @PROJECT_NAME@")
+endif()
+
 # Note:
 #   Use include_directories(${@PROJECT_NAME@_INCLUDE_DIRS}) to add include directories.
 #   Use target_link_libraries(*YOUR_TARGET* ${@PROJECT_NAME@_LIBRARIES}) to link libraries to your target.
